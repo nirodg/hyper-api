@@ -20,9 +20,11 @@ public class GenericCrudService {
     DtoMapper mapper;
 
     /* ----------  READ  ---------- */
-    public List<Map<String, Object>> findAll(Class<?> entityCls) {
+    public List<Map<String, Object>> findAll(Class<?> entityCls, int offset, int limit) {
         String jpql = "SELECT e FROM " + entityCls.getSimpleName() + " e";
-        TypedQuery<?> q = em.createQuery(jpql, entityCls);
+        TypedQuery<?> q = em.createQuery(jpql, entityCls)
+                .setFirstResult(offset)
+                .setMaxResults(limit);
         return q.getResultList().stream()
                 .map(mapper::toMap)
                 .collect(Collectors.toList());

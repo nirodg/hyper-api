@@ -4,6 +4,7 @@ import dev.hyperapi.runtime.annotations.ExposeAPI;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.Entity;
+import jakarta.ws.rs.NotFoundException;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -28,8 +29,8 @@ public class EntityRegistry {
 
         if (!configuredPackages.isBlank()) {
             cfg.forPackages(Arrays.stream(configuredPackages.split(","))
-                                  .map(String::trim)
-                                  .toArray(String[]::new));
+                    .map(String::trim)
+                    .toArray(String[]::new));
         } // else scan everything reachable on class-path
 
         Reflections reflections = new Reflections(cfg);
@@ -45,7 +46,13 @@ public class EntityRegistry {
 
     public Optional<Class<?>> bySimpleName(String simple) {
         return exposed.stream()
-                      .filter(c -> c.getSimpleName().equalsIgnoreCase(simple))
-                      .findFirst();
+                .filter(c -> c.getSimpleName().equalsIgnoreCase(simple))
+                .findFirst();
     }
+
+    public Class<?> resolve(String simple) {
+        return bySimpleName(simple)
+                .orElseThrow(() -> new NotFoundException("Entity not found: " + simple));
+    }
+
 }
