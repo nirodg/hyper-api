@@ -2,8 +2,11 @@ package dev.hyperapi.runtime.core.mapper;
 
 import dev.hyperapi.runtime.annotations.ExposeAPI;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.persistence.Entity;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.*;
+import org.hibernate.proxy.HibernateProxy;
 
 /**
  * Very light reflection mapper: Entity ? Map<String,Object>. Ignores fields
@@ -13,23 +16,34 @@ import java.util.*;
 public class DtoMapper {
 
     /* --------  Entity ? Map  -------- */
-    public Map<String, Object> toMap(Object entity) {
-        if (entity == null) {
+    public Map<String, Object> toMap(Object input) {
+        if (input == null) {
             return Collections.emptyMap();
         }
 
-        Map<String, Object> result = new LinkedHashMap<>();
+        // 1) Unwrap proxies
+        Object entity = unwrap(input);
         Class<?> cls = entity.getClass();
-        Set<String> ignore = ignored(cls);
 
-        for (Field f : cls.getDeclaredFields()) {
-            if (ignore.contains(f.getName())) {
+        // 2) Must be a JPA @Entity
+        if (!cls.isAnnotationPresent(Entity.class)) {
+            throw new IllegalArgumentException(
+                    "Cannot map non-entity class: " + cls.getName()
+            );
+        }
+        // 3) Build the DTO map
+        Set<String> ignore = ignored(cls);
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (Field field : cls.getDeclaredFields()) {
+            // skip static, skip ignored
+            if (Modifier.isStatic(field.getModifiers()) || ignore.contains(field.getName())) {
                 continue;
             }
-            f.setAccessible(true);
+            field.setAccessible(true);
             try {
-                result.put(f.getName(), f.get(entity));
-            } catch (IllegalAccessException ignored1) {
+                result.put(field.getName(), field.get(entity));
+            } catch (IllegalAccessException e) {
+                // ignore unreadable fields
             }
         }
         return result;
@@ -62,5 +76,19 @@ public class DtoMapper {
             return Set.of();
         }
         return Set.of(cls.getAnnotation(ExposeAPI.class).mapping().ignore());
+    }
+
+    // Unwrap HibernateProxy or any CGLIB-derived subclass (proxy)
+    private static Object unwrap(Object input) {
+        // Hibernate proxy?
+        if (input instanceof HibernateProxy hp) {
+            return hp.getHibernateLazyInitializer().getImplementation();
+        }
+        // Quarkus/CDI or CGLIB proxy often has $$ in the class name
+        Class<?> cls = input.getClass();
+        if (cls.getName().contains("$$") && cls.getSuperclass() != null) {
+            return cls.getSuperclass().cast(input);
+        }
+        return input;
     }
 }
