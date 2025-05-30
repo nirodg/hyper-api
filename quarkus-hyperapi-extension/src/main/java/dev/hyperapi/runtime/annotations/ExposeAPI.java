@@ -15,6 +15,8 @@ public @interface ExposeAPI {
      */
     String path() default "";
 
+    Class<?> dto() default Void.class; // 🆕 optional DTO override
+
     /**
      * which fields to ignore
      */
