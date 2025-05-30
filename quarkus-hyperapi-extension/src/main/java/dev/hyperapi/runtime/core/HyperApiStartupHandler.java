@@ -4,18 +4,28 @@
  */
 package dev.hyperapi.runtime.core;
 
+import dev.hyperapi.runtime.core.llm.LLMDocsRoute;
 import dev.hyperapi.runtime.core.mapper.DtoMapper;
+import dev.hyperapi.runtime.core.registry.EntityRegistry;
 import dev.hyperapi.runtime.core.service.GenericCrudService;
 import io.quarkus.runtime.StartupEvent;
+import io.vertx.ext.web.Router;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @ApplicationScoped
 public class HyperApiStartupHandler {
 
-    private static final Logger LOG = Logger.getLogger(HyperApiStartupHandler.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(HyperApiStartupHandler.class);
+
+    @Inject
+    Router router;
+
+    @Inject
+    LLMDocsRoute llmDocsRoute;
 
     @Inject
     DtoMapper dtoMapper;
@@ -23,9 +33,21 @@ public class HyperApiStartupHandler {
     @Inject
     GenericCrudService crudService;
 
+    @Inject
+    EntityRegistry entityRegistry;
+
     void onStart(@Observes StartupEvent ev) {
         LOG.info("HyperAPI extension started successfully!");
         LOG.info("DtoMapper instance: " + (dtoMapper != null ? "OK" : "NULL"));
         LOG.info("GenericCrudService instance: " + (crudService != null ? "OK" : "NULL"));
+
+        entityRegistry.all().forEach(entityClass -> {
+            LOG.info("Registered entity: " + entityClass.getName());
+            // Optionally, you can initialize services for each entity
+            // GenericCrudService service = new GenericCrudService(entityClass);
+            // crudService.registerService(entityClass, service);
+        });
+
+        llmDocsRoute.register(router);
     }
 }
