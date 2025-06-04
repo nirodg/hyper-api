@@ -24,6 +24,12 @@ public @interface ExposeAPI {
     HttpMethodConfig disabledFor() default @HttpMethodConfig;
 
     /**
+
+     * Which HTTP methods will not be served (returning 404)
+     */
+    HttpMethodConfig disabledFor() default @HttpMethodConfig;
+
+    /**
      * Which fields to ignore (for mapping)
      */
     Mapping mapping() default @Mapping;
@@ -33,26 +39,14 @@ public @interface ExposeAPI {
      */
     Pageable pageable() default @Pageable;
 
-    /**
-     * Fields to exclude from PATCH operations (compile-time validated against the entity fields)
-     */
-    Patchable patchable() default @Patchable;
-
-     /*
-     * security roles
-     */
-    Security security() default @Security;
-
-    /**
-     * fire CDI events
-     */
+  
     Events events() default @Events;
 
     /**
-     * caching configuration
+     * Caching configuration
      */
     Cache cache() default @Cache;
-      
+  
     @interface HttpMethodConfig {
         /**
          * HTTP methods for which this API is disabled
@@ -61,49 +55,48 @@ public @interface ExposeAPI {
     }
 
     @interface Mapping {
-
         String[] ignore() default {};
     }
 
     @interface Pageable {
-
         /**
-         * default page size
+         * Default page size
          */
         int limit() default 20;
 
         /**
-         * max page size allowed
+         * Max page size allowed
          */
         int maxLimit() default 100;
     }
 
-    @interface Security {
-
+    @interface Patchable {
         /**
-         * roles allowed to call any endpoint
+         * List of DTO attributes to exclude from PATCH
+         */
+        String[] exclude() default {};
+    }
+
+    @interface Security {
+        /**
+         * Roles allowed to call any endpoint
          */
         String[] rolesAllowed() default {};
 
-        
         /**
-         * if true ⇒ caller must at least be authenticated; if false ⇒ anonymous
+         * If true ⇒ caller must at least be authenticated; if false ⇒ anonymous
          * allowed (unless rolesAllowed is non-empty)
          */
         boolean requireAuth() default false;
     }
 
     @interface Events {
-
         boolean onCreate() default false;
-
         boolean onUpdate() default false;
-
         boolean onDelete() default false;
     }
 
     @interface Cache {
-
         boolean enabled() default false;
 
         /**
