@@ -4,12 +4,15 @@ import com.google.auto.service.AutoService;
 import com.squareup.javapoet.*;
 import dev.hyperapi.runtime.core.processor.annotations.RestService;
 
+import javax.annotation.Generated;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import java.io.IOException;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -71,7 +74,8 @@ public class RestServiceProcessor extends AbstractProcessor {
                 .addAnnotation(ClassName.get("lombok", "Getter"))
                 .addAnnotation(ClassName.get("lombok", "Setter"))
                 .addAnnotation(ClassName.get("lombok", "NoArgsConstructor"))
-                .addAnnotation(ClassName.get("lombok", "AllArgsConstructor"));
+                .addAnnotation(ClassName.get("lombok", "AllArgsConstructor"))
+                .addAnnotation(generatedAnnotation());
 
         for (Element field : entity.getEnclosedElements()) {
             if (field.getKind() == ElementKind.FIELD && !ignore.contains(field.getSimpleName().toString())) {
@@ -100,6 +104,7 @@ public class RestServiceProcessor extends AbstractProcessor {
 
         TypeSpec mapperClass = TypeSpec.classBuilder(mapperName)
                 .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+                .addAnnotation(generatedAnnotation())
                 .addAnnotation(AnnotationSpec.builder(ClassName.get("org.mapstruct", "Mapper"))
                         .addMember("componentModel", "$S", "cdi")
                         .build())
@@ -128,6 +133,7 @@ public class RestServiceProcessor extends AbstractProcessor {
 
         TypeSpec serviceClass = TypeSpec.classBuilder(serviceName)
                 .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(generatedAnnotation())
                 .addAnnotation(ClassName.get("jakarta.enterprise.context", "ApplicationScoped"))
                 .superclass(superType)
                 .addMethod(MethodSpec.constructorBuilder()
@@ -154,20 +160,27 @@ public class RestServiceProcessor extends AbstractProcessor {
 
         TypeName superType = ParameterizedTypeName.get(
                 ClassName.get("dev.hyperapi.runtime.core.controller", "RestController"),
-                dtoClass, mapperClass, serviceClass, entityClass
+                dtoClass, mapperClass, entityClass
         );
 
         TypeSpec controllerClass = TypeSpec.classBuilder(controllerName)
                 .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(generatedAnnotation())
                 .addAnnotation(AnnotationSpec.builder(ClassName.get("jakarta.ws.rs", "Path"))
                         .addMember("value", "$S", "/api/" + entityName.toLowerCase())
                         .build())
                 .addAnnotation(ClassName.get("jakarta.enterprise.context", "ApplicationScoped"))
                 .superclass(superType)
-                .addMethod(MethodSpec.constructorBuilder()
+                .addField(FieldSpec.builder(serviceClass, "service", Modifier.PRIVATE)
+                        .addAnnotation(ClassName.get("jakarta.inject", "Inject"))
+                        .build())
+                .addMethod(MethodSpec.methodBuilder("getService")
+                        .addAnnotation(Override.class)
                         .addModifiers(Modifier.PUBLIC)
-                        .addParameter(serviceClass, "service")
-                        .addStatement("super(service)")
+                        .returns(ParameterizedTypeName.get(
+                                ClassName.get("dev.hyperapi.runtime.core.service", "BaseEntityService"),
+                                entityClass, dtoClass, mapperClass))
+                        .addStatement("return service")
                         .build())
                 .build();
 
@@ -191,5 +204,30 @@ public class RestServiceProcessor extends AbstractProcessor {
         }
         String cleaned = rawDto.replaceAll("(?i)_?dto$", "").trim();
         return cleaned + "DTO";
+    }
+
+    /**
+     * Generates @Generated annotation with detailed build metadata
+     */
+    private AnnotationSpec generatedAnnotation() {
+        return AnnotationSpec.builder(Generated.class)
+                .addMember("value", "$S", "dev.hyperapi.runtime.core.processor.RestServiceProcessor")
+                .addMember("date", "$S", OffsetDateTime.now()
+                        .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+                .addMember("comments", "$S", String.format(
+                        "Source version: %s\n" +
+                                "Compiler: %s %s\n" +
+                                "Build environment: %s %s (%s)\n" +
+                                "Project: %s\n" +
+                                "License: Apache 2.0",
+                        Runtime.version(),
+                        System.getProperty("java.vm.name"),
+                        System.getProperty("java.vm.version"),
+                        System.getProperty("os.name"),
+                        System.getProperty("os.version"),
+                        System.getProperty("os.arch"),
+                        "HyperAPI Quarkus Extension"
+                ))
+                .build();
     }
 }

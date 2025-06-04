@@ -3,6 +3,25 @@
 
 HyperAPI scans your JPA entities, finds those annotated with `@ExposeAPI`, and – at **runtime** – wires complete REST endpoints, DTO mapping, and role-based access control. No controllers, no services, no MapStruct classes to write by hand.
 
+## ⚠️ Important Notice
+
+> **Development Preview**  
+> HyperAPI is currently in **active development** and not yet ready for production use.  
+> Core features are functional, but APIs may change until v1.0 release.
+>
+> ✅ **Recommended for**: Evaluation, prototyping, and feedback gathering  
+> ❌ **Not recommended for**: Production workloads without thorough testing
+
+**❗ Important Legal Notice**  
+> This software is provided **"as is"** without warranties of any kind.  
+> By using HyperAPI, you agree that:
+>
+> ✗ The maintainers **accept no liability** for any damages  
+> ✗ You assume **all risks** associated with its use  
+> ✗ No guarantee is provided for **security or reliability**
+>
+> _Always evaluate thoroughly before production use._
+
 ---
 
 ## ✨ Features (implemented today)
