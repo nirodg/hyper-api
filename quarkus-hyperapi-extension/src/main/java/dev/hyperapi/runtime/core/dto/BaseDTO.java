@@ -8,6 +8,7 @@ import lombok.Setter;
 
 import java.util.Date;
 
+// FIXME: Not working with Lombok
 //@Getter
 //@Setter
 public abstract class BaseDTO {

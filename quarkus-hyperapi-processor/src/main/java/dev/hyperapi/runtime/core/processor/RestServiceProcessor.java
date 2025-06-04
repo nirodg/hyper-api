@@ -16,9 +16,10 @@ import javax.tools.Diagnostic;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
+import jakarta.annotation.Generated;
+
 
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("dev.hyperapi.runtime.core.processor.annotations.RestService")
@@ -49,7 +50,7 @@ public class RestServiceProcessor extends AbstractProcessor {
             String dtoName = sanitizeDtoName(entityType.getSimpleName().toString(), restService.dto());
             List<String> ignoredFields = Arrays.asList(restService.mapping().ignore());
 
-            boolean shouldGenerate = !restService.dto().isBlank() || !ignoredFields.isEmpty();
+            boolean shouldGenerate = !dtoName.isBlank() || !ignoredFields.isEmpty();
             if (!shouldGenerate) {
                 info(entityType, "Skipping generation for " + entityType.getSimpleName());
                 continue;
@@ -101,36 +102,152 @@ public class RestServiceProcessor extends AbstractProcessor {
         ClassName dtoClass = ClassName.get(basePackage + ".dto", dtoName);
         ClassName baseDtoClass = ClassName.get("dev.hyperapi.runtime.core.dto", "BaseDTO");
 
+        // Initialize builder with common configurations
         TypeSpec.Builder dtoBuilder = TypeSpec.classBuilder(dtoClass)
                 .addModifiers(Modifier.PUBLIC)
                 .superclass(baseDtoClass)
                 .addAnnotation(generatedAnnotation())
-                .addAnnotation(ClassName.get("lombok", "Getter"))
-                .addAnnotation(ClassName.get("lombok", "Setter"))
-                .addAnnotation(ClassName.get("lombok", "NoArgsConstructor"))
-                .addAnnotation(ClassName.get("lombok", "AllArgsConstructor"))
                 .addAnnotation(AnnotationSpec.builder(ClassName.get("com.fasterxml.jackson.annotation", "JsonInclude"))
-                        .addMember("value", "$T.Include.NON_NULL", ClassName.get("com.fasterxml.jackson.annotation", "JsonInclude"))
+                        .addMember("value", "$T.Include.NON_NULL",
+                                ClassName.get("com.fasterxml.jackson.annotation", "JsonInclude"))
                         .build());
 
-        // Rest of the method remains the same...
+        // Track fields for potential builder pattern
+        List<Element> allFields = new ArrayList<>();
+//        boolean generateBuilder = entityHasManyFields || hasOptionalFields;
+        // Process all fields
         for (Element field : entity.getEnclosedElements()) {
             if (field.getKind() == ElementKind.FIELD && !ignore.contains(field.getSimpleName().toString())) {
                 String fieldName = field.getSimpleName().toString();
                 TypeMirror fieldType = field.asType();
+                TypeName fieldTypeName = TypeName.get(fieldType);
 
-                dtoBuilder.addField(FieldSpec.builder(TypeName.get(fieldType), fieldName, Modifier.PRIVATE)
+                // Add the field with Jackson annotations
+                FieldSpec.Builder fieldBuilder = FieldSpec.builder(fieldTypeName, fieldName, Modifier.PRIVATE)
                         .addAnnotation(AnnotationSpec.builder(ClassName.get("com.fasterxml.jackson.annotation", "JsonProperty"))
                                 .addMember("value", "$S", fieldName)
-                                .build())
-                        .build());
+                                .build());
+
+                // Handle initialization for collections
+                if (PropertyGenerator.isCollectionType(fieldType)) {
+                    fieldBuilder.initializer("new $T<>()", getCollectionImplType(fieldType));
+                }
+
+                dtoBuilder.addField(fieldBuilder.build());
+                allFields.add(field);
+
+                // Generate all appropriate methods
+                PropertyGenerator.addPropertyMethods(dtoBuilder, field);
             }
         }
 
+        // Add toString(), equals() and hashCode()
+        addCommonMethods(dtoBuilder, allFields, dtoName);
+
+
+        // Add builder pattern if needed
+//        if (generateBuilder) {
+//        PropertyGenerator.addBuilderSupport(dtoBuilder, allFields, dtoClass.simpleName());
+//        }
+
+        // Write the final DTO class
         JavaFile.builder(dtoClass.packageName(), dtoBuilder.build())
                 .indent("    ")
                 .build()
                 .writeTo(filer);
+    }
+
+    // Helper to get proper collection implementation type
+    private static TypeName getCollectionImplType(TypeMirror collectionType) {
+        if (collectionType.toString().startsWith("java.util.List")) {
+            return ClassName.get(ArrayList.class);
+        } else if (collectionType.toString().startsWith("java.util.Set")) {
+            return ClassName.get(HashSet.class);
+        } else if (collectionType.toString().startsWith("java.util.Map")) {
+            return ClassName.get(HashMap.class);
+        }
+        return ClassName.get(Object.class);
+    }
+
+    // Add common methods like toString, equals, hashCode
+    private void addCommonMethods(TypeSpec.Builder builder, List<Element> fields, String className) {
+        ClassName objectsClass = ClassName.get("java.util", "Objects");
+
+        // Generate toString()
+        StringBuilder toStringFormat = new StringBuilder(className + " [");
+        List<Object> toStringArgs = new ArrayList<>();
+        for (int i = 0; i < fields.size(); i++) {
+            String fieldName = fields.get(i).getSimpleName().toString();
+            if (i > 0) {
+                toStringFormat.append(", ");
+            }
+            toStringFormat.append(fieldName).append("=%s");
+            toStringArgs.add(fieldName);
+        }
+        toStringFormat.append("]");
+
+        // Create the format arguments string
+        String formatArgs = toStringArgs.stream()
+                .map(Object::toString)
+                .collect(Collectors.joining(", "));
+
+        MethodSpec toString = MethodSpec.methodBuilder("toString")
+                .addModifiers(Modifier.PUBLIC)
+                .returns(String.class)
+                .addAnnotation(Override.class)
+                .addStatement("return String.format($S, $L)",
+                        toStringFormat.toString(),
+                        formatArgs)
+                .build();
+
+        // Generate equals()
+        ClassName dtoClassName = ClassName.bestGuess(className);
+
+        MethodSpec.Builder equalsBuilder = MethodSpec.methodBuilder("equals")
+                .addModifiers(Modifier.PUBLIC)
+                .returns(boolean.class)
+                .addAnnotation(Override.class)
+                .addParameter(Object.class, "o")
+                .beginControlFlow("if (this == o)")
+                .addStatement("return true")
+                .endControlFlow()
+                .beginControlFlow("if (o == null || getClass() != o.getClass())")
+                .addStatement("return false")
+                .endControlFlow()
+                .addStatement("$T that = ($T) o", dtoClassName, dtoClassName);
+
+        // Build the equality comparison chain
+        CodeBlock.Builder comparisonBuilder = CodeBlock.builder();
+        for (Element field : fields) {
+            String fieldName = field.getSimpleName().toString();
+            if (comparisonBuilder.isEmpty()) {
+                comparisonBuilder.add("$T.equals(this.$L, that.$L)",
+                        objectsClass, fieldName, fieldName);
+            } else {
+                comparisonBuilder.add(" &&\n    $T.equals(this.$L, that.$L)",
+                        objectsClass, fieldName, fieldName);
+            }
+        }
+
+        equalsBuilder.addStatement("return $L", comparisonBuilder.build());
+        MethodSpec equals = equalsBuilder.build();
+
+
+        // Generate hashCode()
+        String hashFields = fields.stream()
+                .map(f -> f.getSimpleName().toString())
+                .collect(Collectors.joining(", "));
+
+        MethodSpec hashCode = MethodSpec.methodBuilder("hashCode")
+                .addModifiers(Modifier.PUBLIC)
+                .returns(int.class)
+                .addAnnotation(Override.class)
+                .addStatement("return $T.hash($L)", objectsClass, hashFields)
+                .build();
+
+        builder.addMethod(toString)
+                .addMethod(equals)
+                .addMethod(hashCode);
     }
 
     private void generateService(TypeElement entity, String dtoName) throws IOException {
@@ -204,6 +321,6 @@ public class RestServiceProcessor extends AbstractProcessor {
      * Generates @Generated annotation with detailed build metadata
      */
     private AnnotationSpec generatedAnnotation() {
-        return AnnotationSpec.builder(jakarta.annotation.Generated.class).addMember("value", "$S", "dev.hyperapi.runtime.core.processor.RestServiceProcessor").addMember("date", "$S", OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)).addMember("comments", "$S", String.format("Source version: %s\n" + "Compiler: %s %s\n" + "Build environment: %s %s (%s)\n" + "Project: %s\n" + "License: Apache 2.0", Runtime.version(), System.getProperty("java.vm.name"), System.getProperty("java.vm.version"), System.getProperty("os.name"), System.getProperty("os.version"), System.getProperty("os.arch"), "HyperAPI Quarkus Extension")).build();
+        return AnnotationSpec.builder(Generated.class).addMember("value", "$S", "dev.hyperapi.runtime.core.processor.RestServiceProcessor").addMember("date", "$S", OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)).addMember("comments", "$S", String.format("Source version: %s\n" + "Compiler: %s %s\n" + "Build environment: %s %s (%s)\n" + "Project: %s\n" + "License: Apache 2.0", Runtime.version(), System.getProperty("java.vm.name"), System.getProperty("java.vm.version"), System.getProperty("os.name"), System.getProperty("os.version"), System.getProperty("os.arch"), "HyperAPI Quarkus Extension")).build();
     }
 }
