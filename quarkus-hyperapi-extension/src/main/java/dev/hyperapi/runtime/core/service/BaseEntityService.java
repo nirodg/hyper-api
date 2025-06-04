@@ -4,16 +4,24 @@ import dev.hyperapi.runtime.core.dto.BaseDTO;
 import dev.hyperapi.runtime.core.mapper.AbstractMapper;
 import dev.hyperapi.runtime.core.model.BaseEntity;
 import jakarta.inject.Inject;
+import jakarta.json.Json;
+import jakarta.json.JsonMergePatch;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonValue;
+import jakarta.json.bind.Jsonb;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
+import jakarta.ws.rs.NotFoundException;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
- * @author brage
+ * Base CRUD service with DTO and PATCH-style support.
+ *
+ * @param <ENTITY> JPA Entity type
+ * @param <DTO>    DTO type
+ * @param <MAPPER> Mapper type
  */
 public abstract class BaseEntityService<
         ENTITY extends BaseEntity,
@@ -21,9 +29,11 @@ public abstract class BaseEntityService<
         MAPPER extends AbstractMapper<DTO, ENTITY>> {
 
     private final Class<ENTITY> entityClass;
+    private final Class<DTO> dtoClass;
 
-    protected BaseEntityService(Class<ENTITY> entityClass) {
+    protected BaseEntityService(Class<ENTITY> entityClass, Class<DTO> dtoClass) {
         this.entityClass = entityClass;
+        this.dtoClass = dtoClass;
     }
 
     @Inject
@@ -32,35 +42,32 @@ public abstract class BaseEntityService<
     @Inject
     protected MAPPER mapper;
 
+    @Inject
+    Jsonb jsonb;
+
     public List<DTO> findAll() {
         String jpql = "SELECT e FROM " + entityClass.getSimpleName() + " e";
         TypedQuery<ENTITY> query = em.createQuery(jpql, entityClass);
-        List<ENTITY> entities = query.getResultList();
-
-        List<DTO> dtos = new ArrayList<>();
-        for (ENTITY entity : entities) {
-            dtos.add(mapper.toDto(entity));
-        }
-        return dtos;
+        return mapper.toList(query.getResultList());
     }
 
-    public Map<String, Object> findById(Object id) {
+    public DTO findById(Object id) {
         ENTITY entity = em.find(entityClass, id);
-        return entity != null ? mapper.toMap(entity) : null;
+        return entity != null ? mapper.toDto(entity) : null;
     }
 
     @Transactional
-    public Map<String, Object> create(Map<String, Object> dto) {
-        ENTITY entity = mapper.toEntity(dto, entityClass);
+    public DTO create(DTO dto) {
+        ENTITY entity = mapper.toEntity(dto);
         em.persist(entity);
-        return mapper.toMap(entity);
+        return mapper.toDto(entity);
     }
 
     @Transactional
-    public Map<String, Object> update(Map<String, Object> dto) {
-        ENTITY entity = mapper.toEntity(dto, entityClass);
+    public DTO update(DTO dto) {
+        ENTITY entity = mapper.toEntity(dto);
         ENTITY merged = em.merge(entity);
-        return mapper.toMap(merged);
+        return mapper.toDto(merged);
     }
 
     @Transactional
@@ -68,5 +75,34 @@ public abstract class BaseEntityService<
         ENTITY ref = em.getReference(entityClass, id);
         em.remove(ref);
     }
+
+    @Transactional
+    public DTO patch(String id, JsonObject patchJson) {
+        DTO existingDto = findById(id);
+        if (existingDto == null) {
+            throw new NotFoundException("Entity not found");
+        }
+
+        // Convert DTO to JSON
+        JsonObject existingJson = Json.createObjectBuilder()
+                .add("id", ((BaseDTO) existingDto).getGuid() ) // Extend this to include all fields as needed
+                .build();
+
+        // Apply patch
+        JsonMergePatch mergePatch = Json.createMergePatch(patchJson);
+        JsonValue patchedValue = mergePatch.apply(existingJson);
+        JsonObject patchedJson = patchedValue.asJsonObject();
+
+        // Deserialize into new DTO (or manually hydrate)
+        DTO patchedDto = jsonToDto(patchedJson);
+        patchedDto.setGuid(id); // ensure ID is preserved
+
+        return update(patchedDto);
+    }
+
+    private DTO jsonToDto(JsonObject json) {
+        return jsonb.fromJson(json.toString(), dtoClass);
+    }
+
 
 }

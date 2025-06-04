@@ -6,11 +6,7 @@ import dev.hyperapi.runtime.core.processor.annotations.RestService;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeMirror;
+import javax.lang.model.element.*;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import java.io.IOException;
@@ -57,6 +53,7 @@ public class RestServiceProcessor extends AbstractProcessor {
                 generateDTO(entityType, dtoName, ignoredFields);
                 generateMapper(entityType, dtoName);
                 generateService(entityType, dtoName);
+                generateController(entityType, dtoName);
             } catch (IOException e) {
                 error(entityType, "Code generation failed: " + e.getMessage());
             }
@@ -78,8 +75,7 @@ public class RestServiceProcessor extends AbstractProcessor {
 
         for (Element field : entity.getEnclosedElements()) {
             if (field.getKind() == ElementKind.FIELD && !ignore.contains(field.getSimpleName().toString())) {
-                TypeMirror type = field.asType();
-                dtoBuilder.addField(FieldSpec.builder(TypeName.get(type), field.getSimpleName().toString(), Modifier.PRIVATE).build());
+                dtoBuilder.addField(FieldSpec.builder(TypeName.get(field.asType()), field.getSimpleName().toString(), Modifier.PRIVATE).build());
             }
         }
 
@@ -102,7 +98,7 @@ public class RestServiceProcessor extends AbstractProcessor {
                 dtoClass, entityClass
         );
 
-        TypeSpec mapperInterface = TypeSpec.classBuilder(mapperName)
+        TypeSpec mapperClass = TypeSpec.classBuilder(mapperName)
                 .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
                 .addAnnotation(AnnotationSpec.builder(ClassName.get("org.mapstruct", "Mapper"))
                         .addMember("componentModel", "$S", "cdi")
@@ -110,7 +106,7 @@ public class RestServiceProcessor extends AbstractProcessor {
                 .superclass(superType)
                 .build();
 
-        JavaFile.builder(basePackage + ".mapper", mapperInterface)
+        JavaFile.builder(basePackage + ".mapper", mapperClass)
                 .indent("    ")
                 .build()
                 .writeTo(filer);
@@ -119,7 +115,7 @@ public class RestServiceProcessor extends AbstractProcessor {
     private void generateService(TypeElement entity, String dtoName) throws IOException {
         String entityName = entity.getSimpleName().toString();
         String basePackage = elementUtils.getPackageOf(entity).getQualifiedName().toString();
-        String serviceName = entityName + "AutoService";
+        String serviceName = entityName + "Service";
 
         ClassName dtoClass = ClassName.get(basePackage + ".dto", dtoName);
         ClassName entityClass = ClassName.get(basePackage, entityName);
@@ -136,11 +132,46 @@ public class RestServiceProcessor extends AbstractProcessor {
                 .superclass(superType)
                 .addMethod(MethodSpec.constructorBuilder()
                         .addModifiers(Modifier.PUBLIC)
-                        .addStatement("super($T.class)", entityClass)
+                        .addStatement("super($T.class, $T.class)", entityClass, dtoClass)
                         .build())
                 .build();
 
         JavaFile.builder(basePackage + ".service", serviceClass)
+                .indent("    ")
+                .build()
+                .writeTo(filer);
+    }
+
+    private void generateController(TypeElement entity, String dtoName) throws IOException {
+        String entityName = entity.getSimpleName().toString();
+        String basePackage = elementUtils.getPackageOf(entity).getQualifiedName().toString();
+        String controllerName = entityName + "RestService";
+
+        ClassName dtoClass = ClassName.get(basePackage + ".dto", dtoName);
+        ClassName mapperClass = ClassName.get(basePackage + ".mapper", entityName + "Mapper");
+        ClassName serviceClass = ClassName.get(basePackage + ".service", entityName + "Service");
+        ClassName entityClass = ClassName.get(basePackage, entityName);
+
+        TypeName superType = ParameterizedTypeName.get(
+                ClassName.get("dev.hyperapi.runtime.core.controller", "RestController"),
+                dtoClass, mapperClass, serviceClass, entityClass
+        );
+
+        TypeSpec controllerClass = TypeSpec.classBuilder(controllerName)
+                .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(AnnotationSpec.builder(ClassName.get("jakarta.ws.rs", "Path"))
+                        .addMember("value", "$S", "/api/" + entityName.toLowerCase())
+                        .build())
+                .addAnnotation(ClassName.get("jakarta.enterprise.context", "ApplicationScoped"))
+                .superclass(superType)
+                .addMethod(MethodSpec.constructorBuilder()
+                        .addModifiers(Modifier.PUBLIC)
+                        .addParameter(serviceClass, "service")
+                        .addStatement("super(service)")
+                        .build())
+                .build();
+
+        JavaFile.builder(basePackage + ".controller", controllerClass)
                 .indent("    ")
                 .build()
                 .writeTo(filer);

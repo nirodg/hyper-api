@@ -1,6 +1,6 @@
 package dev.hyperapi.deployment;
 
-import dev.hyperapi.runtime.core.controller.GenericCrudController;
+import dev.hyperapi.runtime.core.controller.RestController;
 import dev.hyperapi.runtime.core.mapper.DtoMapper;
 import dev.hyperapi.runtime.core.registry.EntityRegistry;
 import dev.hyperapi.runtime.core.service.GenericCrudService;
@@ -24,7 +24,7 @@ public final class HyperApiProcessor {
                 .addBeanClasses(
                         DtoMapper.class,
                         EntityRegistry.class,
-                        GenericCrudController.class,
+                        RestController.class,
                         GenericCrudService.class
                 )
                 .setUnremovable()
