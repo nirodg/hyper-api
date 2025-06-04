@@ -1,6 +1,6 @@
 package dev.hyperapi.runtime.core.controller;
 
-import dev.hyperapi.runtime.annotations.ExposeAPI;
+import dev.hyperapi.runtime.annotations.RestService;
 import dev.hyperapi.runtime.core.common.EntityConfigProvider;
 import dev.hyperapi.runtime.core.registry.EntityRegistry;
 import dev.hyperapi.runtime.core.service.GenericCrudService;
@@ -41,7 +41,7 @@ public class GenericCrudController {
             @QueryParam("size") @DefaultValue("-1") int size
     ) {
         Class<?> cls = resolveAndCheck(entityName);
-        ExposeAPI cfg = configProvider.configFor(cls);
+        RestService cfg = configProvider.configFor(cls);
         int limit = size < 0 ? cfg.pageable().limit() : Math.min(size, cfg.pageable().maxLimit());
         int offset = page * limit;
         return Response.ok(service.findAll(cls, offset, limit)).build();
@@ -116,7 +116,7 @@ public class GenericCrudController {
         Map<String, Object> patchedMap = jsonObjectToMap(patchedJson);
 
         // 4. Validate patched fields against ignore list
-        ExposeAPI cfg = configProvider.configFor(cls);
+        RestService cfg = configProvider.configFor(cls);
         String[] excludeFields = cfg.patchable().exclude();
         String validationError = validatePatch(patchJson, excludeFields);
         if (validationError != null) {
@@ -142,7 +142,7 @@ public class GenericCrudController {
     /* -------- helpers -------- */
     private Class<?> resolveAndCheck(String entityName) {
         Class<?> cls = registry.resolve(entityName);
-        ExposeAPI cfg = configProvider.configFor(cls);
+        RestService cfg = configProvider.configFor(cls);
         checkDisabled(cfg);
         checkRoles(cls);
         return cls;
@@ -153,7 +153,7 @@ public class GenericCrudController {
     }
 
     private void checkRoles(Class<?> entityClass) {
-        ExposeAPI cfg = configProvider.configFor(entityClass);
+        RestService cfg = configProvider.configFor(entityClass);
         String[] allowed = cfg.security().rolesAllowed();
         if (allowed.length > 0) {
             boolean has = Stream.of(allowed).anyMatch(securityContext::isUserInRole);
@@ -163,7 +163,7 @@ public class GenericCrudController {
         }
     }
 
-    private void checkDisabled(ExposeAPI cfg) {
+    private void checkDisabled(RestService cfg) {
         if(cfg == null) {
             return; // No configuration available for this entity
         }

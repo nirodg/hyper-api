@@ -1,10 +1,9 @@
 package dev.hyperapi.runtime.core.llm;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import dev.hyperapi.runtime.annotations.ExposeAPI;
+import dev.hyperapi.runtime.annotations.RestService;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -80,7 +79,7 @@ public class OllamaLLMDocService implements LLMDocService {
         Set<String> ignoredFields = Set.of();
 
         // Use DTO override if defined in @ExposeAPI
-        ExposeAPI annotation = entity.getAnnotation(ExposeAPI.class);
+        RestService annotation = entity.getAnnotation(RestService.class);
         if (annotation != null && annotation.dto() != Void.class) {
             entity = annotation.dto();
         } else {

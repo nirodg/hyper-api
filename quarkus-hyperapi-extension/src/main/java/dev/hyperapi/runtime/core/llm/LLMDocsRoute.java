@@ -1,25 +1,18 @@
 package dev.hyperapi.runtime.core.llm;
 
 
-import dev.hyperapi.runtime.annotations.ExposeAPI;
+import dev.hyperapi.runtime.annotations.RestService;
 import dev.hyperapi.runtime.core.registry.EntityRegistry;
-import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
-import io.smallrye.common.annotation.Blocking;
 import io.smallrye.config.SmallRyeConfig;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.subscription.Cancellable;
-import io.vertx.core.Vertx;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Default;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
-import java.net.URI;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -60,16 +53,16 @@ public class LLMDocsRoute {
                             .append(entity.getSimpleName()).append("\n")
                             .append("Base path: /api/").append(entity.getSimpleName().toLowerCase()).append("\n")
                             .append("CRUD Operations:\n");
-                    ExposeAPI metadata = entity.getAnnotation(ExposeAPI.class);
+                    RestService metadata = entity.getAnnotation(RestService.class);
                     String path = metadata != null && !metadata.path().isEmpty()
                             ? metadata.path()
                             : "/api/" + entity.getSimpleName().toLowerCase();
 
 
-                    ExposeAPI.Pageable paging = metadata != null ? metadata.pageable() : null;
-                    ExposeAPI.Security security = metadata != null ? metadata.security() : null;
-                    ExposeAPI.Events events = metadata != null ? metadata.events() : null;
-                    ExposeAPI.Cache cache = metadata != null ? metadata.cache() : null;
+                    RestService.Pageable paging = metadata != null ? metadata.pageable() : null;
+                    RestService.Security security = metadata != null ? metadata.security() : null;
+                    RestService.Events events = metadata != null ? metadata.events() : null;
+                    RestService.Cache cache = metadata != null ? metadata.cache() : null;
 
                     entitySpec.append("Entity: ").append(entity.getSimpleName()).append("\n")
                             .append("Base path: ").append(path).append("\n")

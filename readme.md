@@ -40,8 +40,8 @@ quarkus.log.console.json=false   # pretty console logs in dev
 ```java
 package com.example.domain;
 
-import dev.hyperapi.runtime.annotations.ExposeAPI;
-import static dev.hyperapi.runtime.annotations.ExposeAPI.*;
+import dev.hyperapi.runtime.annotations.RestService;
+import static dev.hyperapi.runtime.annotations.RestService.*;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
