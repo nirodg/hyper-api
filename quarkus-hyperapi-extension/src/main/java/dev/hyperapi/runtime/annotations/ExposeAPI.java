@@ -112,18 +112,6 @@ public @interface ExposeAPI {
         int ttlSeconds() default 60;
     }
 
-    @interface Pageable {
-        /**
-         * Default page size
-         */
-        int limit() default 20;
-
-        /**
-         * Max page size allowed
-         */
-        int maxLimit() default 100;
-    }
-
     @interface Patchable {
         /**
          * List of DTO attributes to exclude from PATCH
@@ -131,31 +119,4 @@ public @interface ExposeAPI {
         String[] exclude() default {};
     }
 
-    @interface Security {
-        /**
-         * Roles allowed to call any endpoint
-         */
-        String[] rolesAllowed() default {};
-
-        /**
-         * If true ⇒ caller must at least be authenticated; if false ⇒ anonymous
-         * allowed (unless rolesAllowed is non-empty)
-         */
-        boolean requireAuth() default false;
-    }
-
-    @interface Events {
-        boolean onCreate() default false;
-        boolean onUpdate() default false;
-        boolean onDelete() default false;
-    }
-
-    @interface Cache {
-        boolean enabled() default false;
-
-        /**
-         * TTL in seconds
-         */
-        int ttlSeconds() default 60;
-    }
 }
