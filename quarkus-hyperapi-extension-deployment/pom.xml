@@ -184,12 +184,6 @@
 
     <build>
         <plugins>
-            <!-- Quarkus plugin to compile deployment processor -->
-            <!--            <plugin>
-                <groupId>io.quarkus</groupId>
-                <artifactId>quarkus-maven-plugin</artifactId>
-                <version>${quarkus.version}</version>
-            </plugin>-->
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>

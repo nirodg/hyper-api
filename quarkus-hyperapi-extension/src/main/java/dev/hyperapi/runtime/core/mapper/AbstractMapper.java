@@ -15,6 +15,7 @@ public abstract class AbstractMapper<DTO, ENTITY extends BaseEntity> {
      * @param entity the entity to convert
      * @return the converted DTO
      */
+    @Mapping(target = ".", source = ".")
     public abstract DTO toDto(ENTITY entity);
 
 
@@ -24,6 +25,7 @@ public abstract class AbstractMapper<DTO, ENTITY extends BaseEntity> {
      * @param dto the DTO to convert
      * @return the converted entity
      */
+    @Mapping(target = ".", source = ".")
     public abstract ENTITY toEntity(DTO dto);
 
 

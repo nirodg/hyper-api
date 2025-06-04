@@ -47,6 +47,12 @@
             <version>1.1.1</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>2.1.1</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -60,14 +66,6 @@
                     <target>21</target>
                     <encoding>UTF-8</encoding>
                     <generatedSourcesDirectory>${project.build.directory}/generated-sources</generatedSourcesDirectory>
-<!--                    <annotationProcessorPaths>-->
-<!--                        <path>-->
-<!--                            <groupId>${project.groupId}</groupId>-->
-<!--                            <artifactId>${project.artifactId}</artifactId>-->
-<!--                            <version>${project.version}</version>-->
-<!--                        </path>-->
-<!--                        &lt;!&ndash; Other annotation processors if needed &ndash;&gt;-->
-<!--                    </annotationProcessorPaths>-->
                 </configuration>
             </plugin>
         </plugins>

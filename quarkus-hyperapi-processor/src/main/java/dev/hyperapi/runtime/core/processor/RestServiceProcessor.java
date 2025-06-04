@@ -4,10 +4,13 @@ import com.google.auto.service.AutoService;
 import com.squareup.javapoet.*;
 import dev.hyperapi.runtime.core.processor.annotations.RestService;
 
-import javax.annotation.Generated;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.*;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import java.io.IOException;
@@ -56,7 +59,7 @@ public class RestServiceProcessor extends AbstractProcessor {
                 generateDTO(entityType, dtoName, ignoredFields);
                 generateMapper(entityType, dtoName);
                 generateService(entityType, dtoName);
-                generateController(entityType, dtoName);
+                generateController(entityType, dtoName, restService);
             } catch (IOException e) {
                 error(entityType, "Code generation failed: " + e.getMessage());
             }
@@ -64,30 +67,6 @@ public class RestServiceProcessor extends AbstractProcessor {
         return true;
     }
 
-    private void generateDTO(TypeElement entity, String dtoName, List<String> ignore) throws IOException {
-        String basePackage = elementUtils.getPackageOf(entity).getQualifiedName().toString();
-        ClassName dtoClass = ClassName.get(basePackage + ".dto", dtoName);
-
-        TypeSpec.Builder dtoBuilder = TypeSpec.classBuilder(dtoClass)
-                .addModifiers(Modifier.PUBLIC)
-                .superclass(ClassName.get("dev.hyperapi.runtime.core.dto", "BaseDTO"))
-                .addAnnotation(ClassName.get("lombok", "Getter"))
-                .addAnnotation(ClassName.get("lombok", "Setter"))
-                .addAnnotation(ClassName.get("lombok", "NoArgsConstructor"))
-                .addAnnotation(ClassName.get("lombok", "AllArgsConstructor"))
-                .addAnnotation(generatedAnnotation());
-
-        for (Element field : entity.getEnclosedElements()) {
-            if (field.getKind() == ElementKind.FIELD && !ignore.contains(field.getSimpleName().toString())) {
-                dtoBuilder.addField(FieldSpec.builder(TypeName.get(field.asType()), field.getSimpleName().toString(), Modifier.PRIVATE).build());
-            }
-        }
-
-        JavaFile.builder(dtoClass.packageName(), dtoBuilder.build())
-                .indent("    ")
-                .build()
-                .writeTo(filer);
-    }
 
     private void generateMapper(TypeElement entity, String dtoName) throws IOException {
         String entityName = entity.getSimpleName().toString();
@@ -112,6 +91,43 @@ public class RestServiceProcessor extends AbstractProcessor {
                 .build();
 
         JavaFile.builder(basePackage + ".mapper", mapperClass)
+                .indent("    ")
+                .build()
+                .writeTo(filer);
+    }
+
+    private void generateDTO(TypeElement entity, String dtoName, List<String> ignore) throws IOException {
+        String basePackage = elementUtils.getPackageOf(entity).getQualifiedName().toString();
+        ClassName dtoClass = ClassName.get(basePackage + ".dto", dtoName);
+        ClassName baseDtoClass = ClassName.get("dev.hyperapi.runtime.core.dto", "BaseDTO");
+
+        TypeSpec.Builder dtoBuilder = TypeSpec.classBuilder(dtoClass)
+                .addModifiers(Modifier.PUBLIC)
+                .superclass(baseDtoClass)
+                .addAnnotation(generatedAnnotation())
+                .addAnnotation(ClassName.get("lombok", "Getter"))
+                .addAnnotation(ClassName.get("lombok", "Setter"))
+                .addAnnotation(ClassName.get("lombok", "NoArgsConstructor"))
+                .addAnnotation(ClassName.get("lombok", "AllArgsConstructor"))
+                .addAnnotation(AnnotationSpec.builder(ClassName.get("com.fasterxml.jackson.annotation", "JsonInclude"))
+                        .addMember("value", "$T.Include.NON_NULL", ClassName.get("com.fasterxml.jackson.annotation", "JsonInclude"))
+                        .build());
+
+        // Rest of the method remains the same...
+        for (Element field : entity.getEnclosedElements()) {
+            if (field.getKind() == ElementKind.FIELD && !ignore.contains(field.getSimpleName().toString())) {
+                String fieldName = field.getSimpleName().toString();
+                TypeMirror fieldType = field.asType();
+
+                dtoBuilder.addField(FieldSpec.builder(TypeName.get(fieldType), fieldName, Modifier.PRIVATE)
+                        .addAnnotation(AnnotationSpec.builder(ClassName.get("com.fasterxml.jackson.annotation", "JsonProperty"))
+                                .addMember("value", "$S", fieldName)
+                                .build())
+                        .build());
+            }
+        }
+
+        JavaFile.builder(dtoClass.packageName(), dtoBuilder.build())
                 .indent("    ")
                 .build()
                 .writeTo(filer);
@@ -148,7 +164,7 @@ public class RestServiceProcessor extends AbstractProcessor {
                 .writeTo(filer);
     }
 
-    private void generateController(TypeElement entity, String dtoName) throws IOException {
+    private void generateController(TypeElement entity, String dtoName, RestService restService) throws IOException {
         String entityName = entity.getSimpleName().toString();
         String basePackage = elementUtils.getPackageOf(entity).getQualifiedName().toString();
         String controllerName = entityName + "RestService";
@@ -158,36 +174,14 @@ public class RestServiceProcessor extends AbstractProcessor {
         ClassName serviceClass = ClassName.get(basePackage + ".service", entityName + "Service");
         ClassName entityClass = ClassName.get(basePackage, entityName);
 
-        TypeName superType = ParameterizedTypeName.get(
-                ClassName.get("dev.hyperapi.runtime.core.controller", "RestController"),
-                dtoClass, mapperClass, entityClass
-        );
+        TypeName superType = ParameterizedTypeName.get(ClassName.get("dev.hyperapi.runtime.core.controller", "RestController"), dtoClass, mapperClass, entityClass);
 
-        TypeSpec controllerClass = TypeSpec.classBuilder(controllerName)
-                .addModifiers(Modifier.PUBLIC)
-                .addAnnotation(generatedAnnotation())
-                .addAnnotation(AnnotationSpec.builder(ClassName.get("jakarta.ws.rs", "Path"))
-                        .addMember("value", "$S", "/api/" + entityName.toLowerCase())
-                        .build())
-                .addAnnotation(ClassName.get("jakarta.enterprise.context", "ApplicationScoped"))
-                .superclass(superType)
-                .addField(FieldSpec.builder(serviceClass, "service", Modifier.PRIVATE)
-                        .addAnnotation(ClassName.get("jakarta.inject", "Inject"))
-                        .build())
-                .addMethod(MethodSpec.methodBuilder("getService")
-                        .addAnnotation(Override.class)
-                        .addModifiers(Modifier.PUBLIC)
-                        .returns(ParameterizedTypeName.get(
-                                ClassName.get("dev.hyperapi.runtime.core.service", "BaseEntityService"),
-                                entityClass, dtoClass, mapperClass))
-                        .addStatement("return service")
-                        .build())
-                .build();
+        String path = restService.path().isBlank() ? "/api/" + entityName.toLowerCase() : restService.path();
+        RestService.Scope scope = restService.scope();
 
-        JavaFile.builder(basePackage + ".controller", controllerClass)
-                .indent("    ")
-                .build()
-                .writeTo(filer);
+        TypeSpec controllerClass = TypeSpec.classBuilder(controllerName).addModifiers(Modifier.PUBLIC).addAnnotation(generatedAnnotation()).addAnnotation(AnnotationSpec.builder(ClassName.get("jakarta.ws.rs", "Path")).addMember("value", "$S", path).build()).addAnnotation(AnnotationSpec.builder(ClassName.bestGuess(scope.getScopeClass())).build()).superclass(superType).addField(FieldSpec.builder(serviceClass, "service", Modifier.PRIVATE).addAnnotation(ClassName.get("jakarta.inject", "Inject")).build()).addMethod(MethodSpec.methodBuilder("getService").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).returns(ParameterizedTypeName.get(ClassName.get("dev.hyperapi.runtime.core.service", "BaseEntityService"), entityClass, dtoClass, mapperClass)).addStatement("return service").build()).build();
+
+        JavaFile.builder(basePackage + ".controller", controllerClass).indent("    ").build().writeTo(filer);
     }
 
     private void error(Element e, String msg) {
@@ -210,24 +204,6 @@ public class RestServiceProcessor extends AbstractProcessor {
      * Generates @Generated annotation with detailed build metadata
      */
     private AnnotationSpec generatedAnnotation() {
-        return AnnotationSpec.builder(Generated.class)
-                .addMember("value", "$S", "dev.hyperapi.runtime.core.processor.RestServiceProcessor")
-                .addMember("date", "$S", OffsetDateTime.now()
-                        .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-                .addMember("comments", "$S", String.format(
-                        "Source version: %s\n" +
-                                "Compiler: %s %s\n" +
-                                "Build environment: %s %s (%s)\n" +
-                                "Project: %s\n" +
-                                "License: Apache 2.0",
-                        Runtime.version(),
-                        System.getProperty("java.vm.name"),
-                        System.getProperty("java.vm.version"),
-                        System.getProperty("os.name"),
-                        System.getProperty("os.version"),
-                        System.getProperty("os.arch"),
-                        "HyperAPI Quarkus Extension"
-                ))
-                .build();
+        return AnnotationSpec.builder(jakarta.annotation.Generated.class).addMember("value", "$S", "dev.hyperapi.runtime.core.processor.RestServiceProcessor").addMember("date", "$S", OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)).addMember("comments", "$S", String.format("Source version: %s\n" + "Compiler: %s %s\n" + "Build environment: %s %s (%s)\n" + "Project: %s\n" + "License: Apache 2.0", Runtime.version(), System.getProperty("java.vm.name"), System.getProperty("java.vm.version"), System.getProperty("os.name"), System.getProperty("os.version"), System.getProperty("os.arch"), "HyperAPI Quarkus Extension")).build();
     }
 }

@@ -13,6 +13,7 @@ public @interface RestService {
 
     String path() default "";
     String dto() default "";
+    Scope scope() default Scope.APPLICATION;
 
     HttpMethodConfig disabledFor() default @HttpMethodConfig(disabledFor = {});
 
@@ -84,6 +85,23 @@ public @interface RestService {
          * TTL in seconds
          */
         int ttlSeconds() default 60;
+    }
+
+    enum Scope {
+        APPLICATION("jakarta.enterprise.context.ApplicationScoped"),
+        REQUEST("jakarta.enterprise.context.RequestScoped"),
+        SESSION("jakarta.enterprise.context.SessionScoped"),
+        DEPENDENT("jakarta.enterprise.context.DependentScoped");
+
+        private final String scopeClass;
+
+        Scope(String scopeClass) {
+            this.scopeClass = scopeClass;
+        }
+
+        public String getScopeClass() {
+            return scopeClass;
+        }
     }
 
 }
