@@ -4,7 +4,7 @@
  */
 package dev.hyperapi.runtime.core.common;
 
-import dev.hyperapi.runtime.annotations.RestService;
+import dev.hyperapi.runtime.core.processor.annotations.RestService;
 import dev.hyperapi.runtime.core.registry.EntityRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

@@ -1,7 +1,6 @@
 package dev.hyperapi.runtime.core.llm;
 
-
-import dev.hyperapi.runtime.annotations.RestService;
+import dev.hyperapi.runtime.core.processor.annotations.RestService;
 import dev.hyperapi.runtime.core.registry.EntityRegistry;
 import io.smallrye.config.SmallRyeConfig;
 import io.smallrye.mutiny.Uni;

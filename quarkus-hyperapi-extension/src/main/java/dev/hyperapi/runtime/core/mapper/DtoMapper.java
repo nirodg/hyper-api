@@ -1,6 +1,6 @@
 package dev.hyperapi.runtime.core.mapper;
 
-import dev.hyperapi.runtime.annotations.RestService;
+import dev.hyperapi.runtime.core.processor.annotations.RestService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.Entity;
 import java.lang.reflect.Field;

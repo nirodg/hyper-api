@@ -1,6 +1,6 @@
 package dev.hyperapi.runtime.core.registry;
 
-import dev.hyperapi.runtime.annotations.RestService;
+import dev.hyperapi.runtime.core.processor.annotations.RestService;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.Entity;

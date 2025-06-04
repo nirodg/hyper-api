@@ -1,7 +1,7 @@
 package dev.hyperapi.runtime.core.controller;
 
-import dev.hyperapi.runtime.annotations.RestService;
 import dev.hyperapi.runtime.core.common.EntityConfigProvider;
+import dev.hyperapi.runtime.core.processor.annotations.RestService;
 import dev.hyperapi.runtime.core.registry.EntityRegistry;
 import dev.hyperapi.runtime.core.service.GenericCrudService;
 import jakarta.inject.Inject;

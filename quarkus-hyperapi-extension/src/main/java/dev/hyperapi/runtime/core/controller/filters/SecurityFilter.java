@@ -1,8 +1,8 @@
 package dev.hyperapi.runtime.core.controller.filters;
 
-import dev.hyperapi.runtime.annotations.RestService;
 import dev.hyperapi.runtime.annotations.Secured;
 import dev.hyperapi.runtime.core.common.EntityConfigProvider;
+import dev.hyperapi.runtime.core.processor.annotations.RestService;
 import dev.hyperapi.runtime.core.registry.EntityRegistry;
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;

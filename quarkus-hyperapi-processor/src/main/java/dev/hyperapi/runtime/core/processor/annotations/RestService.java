@@ -1,4 +1,5 @@
-package dev.hyperapi.runtime.annotations;
+package dev.hyperapi.runtime.core.processor.annotations;
+
 
 import java.lang.annotation.*;
 
@@ -10,44 +11,22 @@ import java.lang.annotation.*;
 @Documented
 public @interface RestService {
 
-    /**
-     * Base path override (defaults to entity simple name)
-     */
     String path() default "";
+    String dto() default "";
 
-    Class<?> dto() default Void.class; // 🆕 optional DTO override
+    HttpMethodConfig disabledFor() default @HttpMethodConfig(disabledFor = {});
 
-    /**
-     * Which HTTP methods will not be served (returning 404)
-     */
-    HttpMethodConfig disabledFor() default @HttpMethodConfig;
+    Mapping mapping() default @Mapping(ignore = {});
 
-    /**
-     * Which fields to ignore (for mapping)
-     */
-    Mapping mapping() default @Mapping;
+    Pageable pageable() default @Pageable(limit = 20, maxLimit = 100);
 
-    /**
-     * Pagination settings
-     */
-    Pageable pageable() default @Pageable;
+    Patchable patchable() default @Patchable(exclude = {});
 
-    /**
-     * Security configuration
-     */
-    Patchable patchable() default @Patchable;
-  
-    Events events() default @Events;
+    Events events() default @Events(onCreate = false, onUpdate = false, onDelete = false);
 
-    /**
-     * Caching configuration
-     */
-    Cache cache() default @Cache;
+    Cache cache() default @Cache(enabled = false, ttlSeconds = 60);
 
-    /**
-     * Security configuration
-     */
-    Security security() default @Security;
+    Security security() default @Security(rolesAllowed = {}, requireAuth = false);
 
     @interface HttpMethodConfig {
         /**
