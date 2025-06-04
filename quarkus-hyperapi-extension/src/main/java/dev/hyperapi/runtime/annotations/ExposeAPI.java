@@ -16,7 +16,15 @@ public @interface ExposeAPI {
      */
     String path() default "";
 
+    Class<?> dto() default Void.class; // 🆕 optional DTO override
+
     /**
+     * Which HTTP methods will not be served (returning 404)
+     */
+    HttpMethodConfig disabledFor() default @HttpMethodConfig;
+
+    /**
+
      * Which HTTP methods will not be served (returning 404)
      */
     HttpMethodConfig disabledFor() default @HttpMethodConfig;
@@ -31,26 +39,14 @@ public @interface ExposeAPI {
      */
     Pageable pageable() default @Pageable;
 
-    /**
-     * Fields to exclude from PATCH operations (compile-time validated against the entity fields)
-     */
-    Patchable patchable() default @Patchable;
-
-    /**
-     * Security roles
-     */
-    Security security() default @Security;
-
-    /**
-     * Fire CDI events
-     */
+  
     Events events() default @Events;
 
     /**
      * Caching configuration
      */
     Cache cache() default @Cache;
-
+  
     @interface HttpMethodConfig {
         /**
          * HTTP methods for which this API is disabled
@@ -108,4 +104,12 @@ public @interface ExposeAPI {
          */
         int ttlSeconds() default 60;
     }
+
+    @interface Patchable {
+        /**
+         * List of DTO attributes to exclude from PATCH
+         */
+        String[] exclude() default {};
+    }
+
 }
