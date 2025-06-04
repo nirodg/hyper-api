@@ -1,6 +1,6 @@
-    <project xmlns="http://maven.apache.org/POM/4.0.0"
-             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-             xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -13,9 +13,14 @@
     <artifactId>quarkus-hyperapi-extension</artifactId>
     <name>HyperAPI Extension</name>
 
+    <properties>
+        <!-- Make sure these versions align exactly -->
+        <junit.jupiter.version>5.10.0</junit.jupiter.version>
+        <junit.platform.commons.version>1.12.2</junit.platform.commons.version>
+    </properties>
 
     <dependencies>
-        
+
         <!--        
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -158,9 +163,9 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-core</artifactId>
         </dependency>
-        
+
         <!--         Quarkus REST & JSONB 
-        -->        
+        -->
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest</artifactId>
@@ -191,6 +196,26 @@
             <artifactId>reflections</artifactId>
             <version>${reflections.version}</version>
         </dependency>
+
+        <!-- Testing -->
+        <!-- https://mvnrepository.com/artifact/io.quarkus/quarkus-junit5-component -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-junit5-component</artifactId>
+<!--            <version>3.23.</version>-->
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- For WebClient -->
         <!-- https://mvnrepository.com/artifact/io.quarkus/quarkus-reactive-routes -->
         <dependency>
@@ -205,6 +230,11 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-client</artifactId>
         </dependency>
     </dependencies>
 
@@ -220,7 +250,8 @@
                             <goal>extension-descriptor</goal>
                         </goals>
                         <configuration>
-                            <deployment>dev.hyperapi:quarkus-hyperapi-extension-deployment:${project.version}</deployment>
+                            <deployment>dev.hyperapi:quarkus-hyperapi-extension-deployment:${project.version}
+                            </deployment>
                         </configuration>
                     </execution>
                 </executions>
@@ -232,7 +263,7 @@
                     <annotationProcessorPaths>
                         <path>
                             <groupId>io.quarkus</groupId>
-                            <artifactId>quarkus-extension-processor</artifactId>  
+                            <artifactId>quarkus-extension-processor</artifactId>
                             <version>${quarkus.version}</version>
                         </path>
                     </annotationProcessorPaths>

@@ -179,3 +179,5 @@ gradle-app.setting
 *.hprof
 
 # End of https://www.toptal.com/developers/gitignore/api/maven,gradle,netbeans,intellij
+.idea 
+.DS_STORE

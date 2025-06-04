@@ -1,5 +1,6 @@
 package dev.hyperapi.runtime.annotations;
 
+import jakarta.ws.rs.HttpMethod;
 import java.lang.annotation.*;
 
 /**
@@ -11,23 +12,33 @@ import java.lang.annotation.*;
 public @interface ExposeAPI {
 
     /**
-     * base path override (defaults to entity simple name)
+     * Base path override (defaults to entity simple name)
      */
     String path() default "";
 
     Class<?> dto() default Void.class; // 🆕 optional DTO override
 
     /**
-     * which fields to ignore
+     * Which HTTP methods will not be served (returning 404)
+     */
+    HttpMethodConfig disabledFor() default @HttpMethodConfig;
+
+    /**
+     * Which fields to ignore (for mapping)
      */
     Mapping mapping() default @Mapping;
 
     /**
-     * pagination settings
+     * Pagination settings
      */
     Pageable pageable() default @Pageable;
 
     /**
+     * Fields to exclude from PATCH operations (compile-time validated against the entity fields)
+     */
+    Patchable patchable() default @Patchable;
+
+     /*
      * security roles
      */
     Security security() default @Security;
@@ -41,6 +52,13 @@ public @interface ExposeAPI {
      * caching configuration
      */
     Cache cache() default @Cache;
+      
+    @interface HttpMethodConfig {
+        /**
+         * HTTP methods for which this API is disabled
+         */
+        jakarta.ws.rs.HttpMethod[] disabledFor() default {};
+    }
 
     @interface Mapping {
 
@@ -93,4 +111,12 @@ public @interface ExposeAPI {
          */
         int ttlSeconds() default 60;
     }
+
+    @interface Patchable {
+        /**
+         * List of DTO attributes to exclude from PATCH
+         */
+        String[] exclude() default {};
+    }
+
 }
