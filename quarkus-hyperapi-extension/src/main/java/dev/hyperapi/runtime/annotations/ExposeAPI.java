@@ -16,6 +16,8 @@ public @interface ExposeAPI {
      */
     String path() default "";
 
+    Class<?> dto() default Void.class; // 🆕 optional DTO override
+
     /**
      * Which HTTP methods will not be served (returning 404)
      */
@@ -36,21 +38,21 @@ public @interface ExposeAPI {
      */
     Patchable patchable() default @Patchable;
 
-    /**
-     * Security roles
+     /*
+     * security roles
      */
     Security security() default @Security;
 
     /**
-     * Fire CDI events
+     * fire CDI events
      */
     Events events() default @Events;
 
     /**
-     * Caching configuration
+     * caching configuration
      */
     Cache cache() default @Cache;
-
+      
     @interface HttpMethodConfig {
         /**
          * HTTP methods for which this API is disabled
@@ -59,7 +61,55 @@ public @interface ExposeAPI {
     }
 
     @interface Mapping {
+
         String[] ignore() default {};
+    }
+
+    @interface Pageable {
+
+        /**
+         * default page size
+         */
+        int limit() default 20;
+
+        /**
+         * max page size allowed
+         */
+        int maxLimit() default 100;
+    }
+
+    @interface Security {
+
+        /**
+         * roles allowed to call any endpoint
+         */
+        String[] rolesAllowed() default {};
+
+        
+        /**
+         * if true ⇒ caller must at least be authenticated; if false ⇒ anonymous
+         * allowed (unless rolesAllowed is non-empty)
+         */
+        boolean requireAuth() default false;
+    }
+
+    @interface Events {
+
+        boolean onCreate() default false;
+
+        boolean onUpdate() default false;
+
+        boolean onDelete() default false;
+    }
+
+    @interface Cache {
+
+        boolean enabled() default false;
+
+        /**
+         * TTL in seconds
+         */
+        int ttlSeconds() default 60;
     }
 
     @interface Pageable {
