@@ -105,12 +105,7 @@ public class RestServiceProcessor extends AbstractProcessor {
 
         // Build @Mapping annotations for both directions
         List<AnnotationSpec> mappingAnnotations = new ArrayList<>();
-        for (String field : ignore) {
-            mappingAnnotations.add(AnnotationSpec.builder(ClassName.get("org.mapstruct", "Mapping"))
-                    .addMember("target", "$S", field)
-                    .addMember("ignore", "true")
-                    .build());
-        }
+
         for (String nested : ignoreNested) {
             mappingAnnotations.add(AnnotationSpec.builder(ClassName.get("org.mapstruct", "Mapping"))
                     .addMember("target", "$S", nested)

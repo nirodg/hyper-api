@@ -31,29 +31,6 @@ public @interface RestService {
 
     Security security() default @Security(rolesAllowed = {}, requireAuth = false);
 
-    /**
-     * If you want to add MapStruct @Mapping annotations in the generated mapper,
-     * list them here. Each entry refers to either the "toDto" or "toEntity" method,
-     * and names the fields to ignore.
-     */
-    MapStructConfig[] mapstruct() default {};
-
-    // New nested annotation:
-    @interface MapStructConfig {
-        /**
-         * Which mapping method this applies to.
-         * For now, we only support “TO_DTO” and “TO_ENTITY”.
-         */
-        Type type();
-
-        /**
-         * A list of DTO‐side or entity‐side properties to ignore.
-         * If type=TO_DTO, each name here is a field on the target DTO;
-         * if type=TO_ENTITY, each name is a field on the target Entity.
-         */
-        String[] ignoreNested() default {};
-    }
-
     enum Type {
         /**
          * Generates @Mapping(target="X", ignore=true) inside toDto(...)
