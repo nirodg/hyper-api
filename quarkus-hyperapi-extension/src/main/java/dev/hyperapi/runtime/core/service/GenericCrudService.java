@@ -15,7 +15,6 @@ public class GenericCrudService {
     @Inject
     EntityManager em;
 
-    @Transactional
     public List<Map<String, Object>> findAll(Class<?> entityClass, int offset, int limit) {
         String queryStr = "SELECT e FROM " + entityClass.getSimpleName() + " e";
         Query query = em.createQuery(queryStr, entityClass);
@@ -35,7 +34,6 @@ public class GenericCrudService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional
     public Map<String, Object> findById(Class<?> entityClass, Long id) {
         Object entity = em.find(entityClass, id);
         if (entity == null) {

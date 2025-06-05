@@ -23,25 +23,13 @@ public @interface RestService {
 
     Pageable pageable() default @Pageable(limit = 20, maxLimit = 100);
 
-    Patchable patchable() default @Patchable(exclude = {});
-
     Events events() default @Events(onCreate = false, onUpdate = false, onDelete = false);
 
     Cache cache() default @Cache(enabled = false, ttlSeconds = 60);
 
     Security security() default @Security(rolesAllowed = {}, requireAuth = false);
 
-    enum Type {
-        /**
-         * Generates @Mapping(target="X", ignore=true) inside toDto(...)
-         */
-        TO_DTO,
-        /**
-         * Generates @Mapping(target="Y", ignore=true) inside toEntity(...)
-         */
-        TO_ENTITY
-    }
-
+    // TODO add support for custom headers
     @interface HttpMethodConfig {
         /**
          * HTTP methods for which this API is disabled
@@ -54,6 +42,7 @@ public @interface RestService {
         String[] ignoreNested() default {};
     }
 
+    // TODO add support for custom query params
     @interface Pageable {
         /**
          * Default page size
@@ -66,13 +55,7 @@ public @interface RestService {
         int maxLimit() default 100;
     }
 
-    @interface Patchable {
-        /**
-         * List of DTO attributes to exclude from PATCH
-         */
-        String[] exclude() default {};
-    }
-
+    // TODO add support for custom security annotations
     @interface Security {
         /**
          * Roles allowed to call any endpoint
@@ -86,6 +69,7 @@ public @interface RestService {
         boolean requireAuth() default false;
     }
 
+    // TODO add support for custom events
     @interface Events {
         boolean onCreate() default false;
 
@@ -94,6 +78,7 @@ public @interface RestService {
         boolean onDelete() default false;
     }
 
+    // TODO add support for custom cache annotations
     @interface Cache {
         boolean enabled() default false;
 
