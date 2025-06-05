@@ -103,9 +103,12 @@ public class PropertyGenerator {
         // Handle special cases
         if (isCollectionType(fieldType)) {
             addCollectionMethods(classBuilder, field);
-        } else if (isCustomObject(fieldType)) {
-            addDeepCopyMethods(classBuilder, field);
         }
+
+//        Not sure if we need this, but keeping it for now
+//        else if (isCustomObject(fieldType)) {
+//            addDeepCopyMethods(classBuilder, field);
+//        }
     }
 
     private static MethodSpec generateGetter(String fieldName, TypeName fieldType, Set<Modifier> modifiers) {

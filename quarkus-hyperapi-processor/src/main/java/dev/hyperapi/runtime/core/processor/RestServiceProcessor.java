@@ -3,6 +3,7 @@ package dev.hyperapi.runtime.core.processor;
 import com.google.auto.service.AutoService;
 import com.squareup.javapoet.*;
 import dev.hyperapi.runtime.core.processor.annotations.RestService;
+import jakarta.annotation.Generated;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -18,7 +19,6 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
-import jakarta.annotation.Generated;
 
 
 @AutoService(Processor.class)
@@ -46,6 +46,13 @@ public class RestServiceProcessor extends AbstractProcessor {
                 continue;
             }
 
+            // 2. Check BaseEntity inheritance
+            if (!isExtendingBaseEntity(entityType)) {
+                error(entityType,
+                        "Class %s must extend dev.hyperapi.runtime.core.entity.BaseEntity to use @RestService", entityType.getSimpleName().toString());
+                return false;
+            }
+
             RestService restService = entityType.getAnnotation(RestService.class);
             String dtoName = sanitizeDtoName(entityType.getSimpleName().toString(), restService.dto());
             List<String> ignoredFields = Arrays.asList(restService.mapping().ignore());
@@ -61,13 +68,26 @@ public class RestServiceProcessor extends AbstractProcessor {
                 generateMapper(entityType, dtoName);
                 generateService(entityType, dtoName);
                 generateController(entityType, dtoName, restService);
-            } catch (IOException e) {
+            } catch (IOException | ClassNotFoundException e) {
                 error(entityType, "Code generation failed: " + e.getMessage());
             }
         }
         return true;
     }
 
+    private boolean isExtendingBaseEntity(TypeElement typeElement) {
+        // 1. Get BaseEntity type
+        TypeElement baseEntityType = elementUtils.getTypeElement(
+                "dev.hyperapi.runtime.core.model.BaseEntity");
+
+        if (baseEntityType == null) {
+            error(typeElement, "Could not resolve BaseEntity class in classpath");
+            return false;
+        }
+
+        // 2. Check inheritance
+        return typeElement.getSuperclass().toString().equals(baseEntityType.getQualifiedName().toString());
+    }
 
     private void generateMapper(TypeElement entity, String dtoName) throws IOException {
         String entityName = entity.getSimpleName().toString();
@@ -97,7 +117,7 @@ public class RestServiceProcessor extends AbstractProcessor {
                 .writeTo(filer);
     }
 
-    private void generateDTO(TypeElement entity, String dtoName, List<String> ignore) throws IOException {
+    private void generateDTO(TypeElement entity, String dtoName, List<String> ignore) throws IOException, ClassNotFoundException {
         String basePackage = elementUtils.getPackageOf(entity).getQualifiedName().toString();
         ClassName dtoClass = ClassName.get(basePackage + ".dto", dtoName);
         ClassName baseDtoClass = ClassName.get("dev.hyperapi.runtime.core.dto", "BaseDTO");
@@ -114,7 +134,7 @@ public class RestServiceProcessor extends AbstractProcessor {
 
         // Track fields for potential builder pattern
         List<Element> allFields = new ArrayList<>();
-//        boolean generateBuilder = entityHasManyFields || hasOptionalFields;
+
         // Process all fields
         for (Element field : entity.getEnclosedElements()) {
             if (field.getKind() == ElementKind.FIELD && !ignore.contains(field.getSimpleName().toString())) {
@@ -141,11 +161,19 @@ public class RestServiceProcessor extends AbstractProcessor {
             }
         }
 
+        if (allFields.isEmpty()) {
+            String wanrMessage = "%s : The class doesn't contain any fields to generate DTO for. " +
+                    "Ensure it has fields annotated with @RestService or not ignored by mapping.";
+            warn(entity, wanrMessage, entity.getQualifiedName().toString());
+        }
+
+
         // Add toString(), equals() and hashCode()
-        addCommonMethods(dtoBuilder, allFields, dtoName);
+        addCommonMethods(dtoBuilder, allFields, dtoName, entity.getSimpleName().toString());
 
 
         // Add builder pattern if needed
+        // FIXME the mapper wont create proper toDto method
 //        if (generateBuilder) {
 //        PropertyGenerator.addBuilderSupport(dtoBuilder, allFields, dtoClass.simpleName());
 //        }
@@ -170,84 +198,121 @@ public class RestServiceProcessor extends AbstractProcessor {
     }
 
     // Add common methods like toString, equals, hashCode
-    private void addCommonMethods(TypeSpec.Builder builder, List<Element> fields, String className) {
+    private void addCommonMethods(TypeSpec.Builder builder, List<Element> fields, String className, String originalName) throws ClassNotFoundException {
         ClassName objectsClass = ClassName.get("java.util", "Objects");
 
-        // Generate toString()
-        StringBuilder toStringFormat = new StringBuilder(className + " [");
-        List<Object> toStringArgs = new ArrayList<>();
-        for (int i = 0; i < fields.size(); i++) {
-            String fieldName = fields.get(i).getSimpleName().toString();
-            if (i > 0) {
-                toStringFormat.append(", ");
+        List<String> baseDtoFields = getBaseDtoFields();
+        List<String> allFieldNames = new ArrayList<>();
+
+        // 2. Add entity fields
+        fields.stream()
+                .map(f -> f.getSimpleName().toString())
+                .forEach(allFieldNames::add);
+
+        generateCommonMethods(builder, fields, className, objectsClass);
+
+    }
+
+    private List<String> getBaseDtoFields() throws ClassNotFoundException {
+        List<String> fieldNames = new ArrayList<>();
+
+        // Load BaseDTO class using element utils
+        TypeElement baseDtoType = elementUtils.getTypeElement("dev.hyperapi.runtime.core.dto.BaseDTO");
+        if (baseDtoType != null) {
+            for (Element enclosed : elementUtils.getAllMembers(baseDtoType)) {
+                if (enclosed.getKind() == ElementKind.FIELD) {
+                    fieldNames.add(enclosed.getSimpleName().toString());
+                }
             }
-            toStringFormat.append(fieldName).append("=%s");
-            toStringArgs.add(fieldName);
+        } else {
+            throw new ClassNotFoundException("BaseDTO class not found in classpath");
         }
-        toStringFormat.append("]");
 
-        // Create the format arguments string
-        String formatArgs = toStringArgs.stream()
-                .map(Object::toString)
-                .collect(Collectors.joining(", "));
+        return fieldNames;
+    }
 
-        MethodSpec toString = MethodSpec.methodBuilder("toString")
-                .addModifiers(Modifier.PUBLIC)
-                .returns(String.class)
-                .addAnnotation(Override.class)
-                .addStatement("return String.format($S, $L)",
-                        toStringFormat.toString(),
-                        formatArgs)
-                .build();
+    private void generateCommonMethods(TypeSpec.Builder builder, List<Element> fields, String className, ClassName objectsClass) {
+        // Generate toString()
+        if (!fields.isEmpty()) {
+            StringBuilder toStringFormat = new StringBuilder(className + " [");
+            List<Object> toStringArgs = new ArrayList<>();
+            for (int i = 0; i < fields.size(); i++) {
+                String fieldName = fields.get(i).getSimpleName().toString();
+                if (i > 0) {
+                    toStringFormat.append(", ");
+                }
+                toStringFormat.append(fieldName).append("=%s");
+                toStringArgs.add(fieldName);
+            }
+            toStringFormat.append("]");
+
+            // Create the format arguments string
+            String formatArgs = toStringArgs.stream()
+                    .map(Object::toString)
+                    .collect(Collectors.joining(", "));
+
+            MethodSpec toString = MethodSpec.methodBuilder("toString")
+                    .addModifiers(Modifier.PUBLIC)
+                    .returns(String.class)
+                    .addAnnotation(Override.class)
+                    .addStatement("return String.format($S, $L)",
+                            toStringFormat.toString(),
+                            formatArgs)
+                    .build();
+            builder.addMethod(toString);
+        }
+
 
         // Generate equals()
-        ClassName dtoClassName = ClassName.bestGuess(className);
+        if (!fields.isEmpty()) {
+            ClassName dtoClassName = ClassName.bestGuess(className);
 
-        MethodSpec.Builder equalsBuilder = MethodSpec.methodBuilder("equals")
-                .addModifiers(Modifier.PUBLIC)
-                .returns(boolean.class)
-                .addAnnotation(Override.class)
-                .addParameter(Object.class, "o")
-                .beginControlFlow("if (this == o)")
-                .addStatement("return true")
-                .endControlFlow()
-                .beginControlFlow("if (o == null || getClass() != o.getClass())")
-                .addStatement("return false")
-                .endControlFlow()
-                .addStatement("$T that = ($T) o", dtoClassName, dtoClassName);
+            MethodSpec.Builder equalsBuilder = MethodSpec.methodBuilder("equals")
+                    .addModifiers(Modifier.PUBLIC)
+                    .returns(boolean.class)
+                    .addAnnotation(Override.class)
+                    .addParameter(Object.class, "o")
+                    .beginControlFlow("if (this == o)")
+                    .addStatement("return true")
+                    .endControlFlow()
+                    .beginControlFlow("if (o == null || getClass() != o.getClass())")
+                    .addStatement("return false")
+                    .endControlFlow()
+                    .addStatement("$T that = ($T) o", dtoClassName, dtoClassName);
 
-        // Build the equality comparison chain
-        CodeBlock.Builder comparisonBuilder = CodeBlock.builder();
-        for (Element field : fields) {
-            String fieldName = field.getSimpleName().toString();
-            if (comparisonBuilder.isEmpty()) {
-                comparisonBuilder.add("$T.equals(this.$L, that.$L)",
-                        objectsClass, fieldName, fieldName);
-            } else {
-                comparisonBuilder.add(" &&\n    $T.equals(this.$L, that.$L)",
-                        objectsClass, fieldName, fieldName);
+            // Build the equality comparison chain
+            CodeBlock.Builder comparisonBuilder = CodeBlock.builder();
+            for (Element field : fields) {
+                String fieldName = field.getSimpleName().toString();
+                if (comparisonBuilder.isEmpty()) {
+                    comparisonBuilder.add("$T.equals(this.$L, that.$L)",
+                            objectsClass, fieldName, fieldName);
+                } else {
+                    comparisonBuilder.add(" &&\n    $T.equals(this.$L, that.$L)",
+                            objectsClass, fieldName, fieldName);
+                }
             }
-        }
 
-        equalsBuilder.addStatement("return $L", comparisonBuilder.build());
-        MethodSpec equals = equalsBuilder.build();
+            equalsBuilder.addStatement("return $L", comparisonBuilder.build());
+            builder.addMethod(equalsBuilder.build());
+        }
 
 
         // Generate hashCode()
-        String hashFields = fields.stream()
-                .map(f -> f.getSimpleName().toString())
-                .collect(Collectors.joining(", "));
+        if (!fields.isEmpty()) {
+            String hashFields = fields.stream()
+                    .map(f -> f.getSimpleName().toString())
+                    .collect(Collectors.joining(", "));
 
-        MethodSpec hashCode = MethodSpec.methodBuilder("hashCode")
-                .addModifiers(Modifier.PUBLIC)
-                .returns(int.class)
-                .addAnnotation(Override.class)
-                .addStatement("return $T.hash($L)", objectsClass, hashFields)
-                .build();
+            MethodSpec hashCode = MethodSpec.methodBuilder("hashCode")
+                    .addModifiers(Modifier.PUBLIC)
+                    .returns(int.class)
+                    .addAnnotation(Override.class)
+                    .addStatement("return $T.hash($L)", objectsClass, hashFields)
+                    .build();
 
-        builder.addMethod(toString)
-                .addMethod(equals)
-                .addMethod(hashCode);
+            builder.addMethod(hashCode);
+        }
     }
 
     private void generateService(TypeElement entity, String dtoName) throws IOException {
@@ -305,8 +370,23 @@ public class RestServiceProcessor extends AbstractProcessor {
         messager.printMessage(Diagnostic.Kind.ERROR, msg, e);
     }
 
+
+    private void error(Element e, String msg, String ... args) {
+        messager.printMessage(Diagnostic.Kind.ERROR, String.format(msg, args), e);
+    }
+
+
     private void info(Element e, String msg) {
         messager.printMessage(Diagnostic.Kind.NOTE, msg, e);
+    }
+
+    private void warn(Element e, String msg) {
+        messager.printMessage(Diagnostic.Kind.NOTE, msg, e);
+    }
+
+
+    private void warn(Element e, String msg, String ... args) {
+        messager.printMessage(Diagnostic.Kind.WARNING, String.format(msg, args), e);
     }
 
     private String sanitizeDtoName(String entityName, String rawDto) {
