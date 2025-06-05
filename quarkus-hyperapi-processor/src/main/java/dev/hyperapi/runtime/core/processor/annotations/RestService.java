@@ -51,7 +51,7 @@ public @interface RestService {
          * If type=TO_DTO, each name here is a field on the target DTO;
          * if type=TO_ENTITY, each name is a field on the target Entity.
          */
-        String[] ignoreFields() default {};
+        String[] ignoreNested() default {};
     }
 
     enum Type {
@@ -74,6 +74,7 @@ public @interface RestService {
 
     @interface Mapping {
         String[] ignore() default {};
+        String[] ignoreNested() default {};
     }
 
     @interface Pageable {

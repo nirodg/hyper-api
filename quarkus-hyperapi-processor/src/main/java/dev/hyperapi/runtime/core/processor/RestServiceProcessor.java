@@ -56,6 +56,7 @@ public class RestServiceProcessor extends AbstractProcessor {
             RestService restService = entityType.getAnnotation(RestService.class);
             String dtoName = sanitizeDtoName(entityType.getSimpleName().toString(), restService.dto());
             List<String> ignoredFields = Arrays.asList(restService.mapping().ignore());
+            List<String> ignoredNestedFields = Arrays.asList(restService.mapping().ignoreNested());
 
             boolean shouldGenerate = !dtoName.isBlank() || !ignoredFields.isEmpty();
             if (!shouldGenerate) {
@@ -65,7 +66,7 @@ public class RestServiceProcessor extends AbstractProcessor {
 
             try {
                 generateDTO(entityType, dtoName, ignoredFields);
-                generateMapper(entityType, dtoName);
+                generateMapper(entityType, dtoName, ignoredFields, ignoredNestedFields);
                 generateService(entityType, dtoName);
                 generateController(entityType, dtoName, restService);
             } catch (IOException | ClassNotFoundException e) {
@@ -89,7 +90,7 @@ public class RestServiceProcessor extends AbstractProcessor {
         return typeElement.getSuperclass().toString().equals(baseEntityType.getQualifiedName().toString());
     }
 
-    private void generateMapper(TypeElement entity, String dtoName) throws IOException {
+    private void generateMapper(TypeElement entity, String dtoName, List<String> ignore, List<String> ignoreNested) throws IOException {
         String entityName = entity.getSimpleName().toString();
         String basePackage = elementUtils.getPackageOf(entity).getQualifiedName().toString();
         String mapperName = entityName + "Mapper";
@@ -102,6 +103,36 @@ public class RestServiceProcessor extends AbstractProcessor {
                 dtoClass, entityClass
         );
 
+        // Build @Mapping annotations for both directions
+        List<AnnotationSpec> mappingAnnotations = new ArrayList<>();
+        for (String field : ignore) {
+            mappingAnnotations.add(AnnotationSpec.builder(ClassName.get("org.mapstruct", "Mapping"))
+                    .addMember("target", "$S", field)
+                    .addMember("ignore", "true")
+                    .build());
+        }
+        for (String nested : ignoreNested) {
+            mappingAnnotations.add(AnnotationSpec.builder(ClassName.get("org.mapstruct", "Mapping"))
+                    .addMember("target", "$S", nested)
+                    .addMember("ignore", "true")
+                    .build());
+        }
+
+        // toEntity method
+        MethodSpec.Builder toEntityBuilder = MethodSpec.methodBuilder("toEntity")
+                .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+                .returns(entityClass)
+                .addParameter(dtoClass, "dto");
+        mappingAnnotations.forEach(toEntityBuilder::addAnnotation);
+
+        // toDto method
+        MethodSpec.Builder toDtoBuilder = MethodSpec.methodBuilder("toDto")
+                .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+                .returns(dtoClass)
+                .addParameter(entityClass, "entity");
+        mappingAnnotations.forEach(toDtoBuilder::addAnnotation);
+
+        // Abstract class builder
         TypeSpec mapperClass = TypeSpec.classBuilder(mapperName)
                 .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
                 .addAnnotation(generatedAnnotation())
@@ -109,6 +140,8 @@ public class RestServiceProcessor extends AbstractProcessor {
                         .addMember("componentModel", "$S", "cdi")
                         .build())
                 .superclass(superType)
+                .addMethod(toEntityBuilder.build())
+                .addMethod(toDtoBuilder.build())
                 .build();
 
         JavaFile.builder(basePackage + ".mapper", mapperClass)
