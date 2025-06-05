@@ -21,8 +21,9 @@ public abstract class RestController<
     protected abstract BaseEntityService<ENTITY, DTO, MAPPER> getService();
 
     @GET
-    public List<DTO> getAll() {
-        return getService().findAll();
+    public List<DTO> getAll(@QueryParam("offset") @DefaultValue("0") int offset, @QueryParam("limit") @DefaultValue("20") int limit) {
+        return getService().findAll(offset, limit);
+
     }
 
     @GET

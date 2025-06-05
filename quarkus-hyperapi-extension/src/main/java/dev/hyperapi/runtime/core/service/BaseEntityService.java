@@ -45,9 +45,11 @@ public abstract class BaseEntityService<
     @Inject
     Jsonb jsonb;
 
-    public List<DTO> findAll() {
+    public List<DTO> findAll(int offset, int limit) {
         String jpql = "SELECT e FROM " + entityClass.getSimpleName() + " e";
         TypedQuery<ENTITY> query = em.createQuery(jpql, entityClass);
+        if (offset > 0) query.setFirstResult(offset);
+        if (limit > 0) query.setMaxResults(limit);
         return mapper.toList(query.getResultList());
     }
 
