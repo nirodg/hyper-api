@@ -1,8 +1,8 @@
 package dev.hyperapi.runtime.core.controller.filters;
 
-import dev.hyperapi.runtime.annotations.ExposeAPI;
 import dev.hyperapi.runtime.annotations.Secured;
 import dev.hyperapi.runtime.core.common.EntityConfigProvider;
+import dev.hyperapi.runtime.core.processor.annotations.RestService;
 import dev.hyperapi.runtime.core.registry.EntityRegistry;
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;
@@ -58,7 +58,7 @@ public class SecurityFilter implements ContainerRequestFilter {
         Class<?> cls = opt.get();
 
         // 4) Read security configuration
-        ExposeAPI.Security sec = cfgProv.configFor(cls).security();
+        RestService.Security sec = cfgProv.configFor(cls).security();
 
         // 5) Anonymous by default
         if (!sec.requireAuth() && sec.rolesAllowed().length == 0) {

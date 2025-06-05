@@ -1,88 +1,108 @@
 package dev.hyperapi.runtime.core.service;
 
-import dev.hyperapi.runtime.core.mapper.DtoMapper;
+import dev.hyperapi.runtime.core.dto.BaseDTO;
+import dev.hyperapi.runtime.core.mapper.AbstractMapper;
+import dev.hyperapi.runtime.core.model.BaseEntity;
 import jakarta.inject.Inject;
+import jakarta.json.Json;
+import jakarta.json.JsonMergePatch;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonValue;
+import jakarta.json.bind.Jsonb;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
+import jakarta.ws.rs.NotFoundException;
+
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
+ * Base CRUD service with DTO and PATCH-style support.
  *
- * @author brage
- * @param <T>
+ * @param <ENTITY> JPA Entity type
+ * @param <DTO>    DTO type
+ * @param <MAPPER> Mapper type
  */
-public abstract class BaseEntityService<T> {
+public abstract class BaseEntityService<
+        ENTITY extends BaseEntity,
+        DTO extends BaseDTO,
+        MAPPER extends AbstractMapper<DTO, ENTITY>> {
+
+    private final Class<ENTITY> entityClass;
+    private final Class<DTO> dtoClass;
+
+    protected BaseEntityService(Class<ENTITY> entityClass, Class<DTO> dtoClass) {
+        this.entityClass = entityClass;
+        this.dtoClass = dtoClass;
+    }
 
     @Inject
     protected EntityManager em;
 
     @Inject
-    protected DtoMapper mapper;
+    protected MAPPER mapper;
 
-    protected final Class<T> entityClass;
+    @Inject
+    Jsonb jsonb;
 
-    public BaseEntityService(Class<T> entityClass) {
-        this.entityClass = entityClass;
-    }
-
-    /* ----------  GENERIC CRUD METHODS  ---------- */
-    public List<Map<String, Object>> findAll() {
+    public List<DTO> findAll() {
         String jpql = "SELECT e FROM " + entityClass.getSimpleName() + " e";
-        TypedQuery<T> q = em.createQuery(jpql, entityClass);
-        return q.getResultList().stream()
-                .map(mapper::toMap)
-                .collect(Collectors.toList());
+        TypedQuery<ENTITY> query = em.createQuery(jpql, entityClass);
+        return mapper.toList(query.getResultList());
     }
 
-    public Map<String, Object> findById(Object id) {
-        T entity = em.find(entityClass, id);
-        return mapper.toMap(entity);
+    public DTO findById(Object id) {
+        ENTITY entity = em.find(entityClass, id);
+        return entity != null ? mapper.toDto(entity) : null;
     }
 
     @Transactional
-    public Map<String, Object> create(Map<String, Object> dto) {
-        T entity = mapper.toEntity(dto, entityClass);
+    public DTO create(DTO dto) {
+        ENTITY entity = mapper.toEntity(dto);
         em.persist(entity);
-        return mapper.toMap(entity);
+        return mapper.toDto(entity);
     }
 
     @Transactional
-    public Map<String, Object> update(Map<String, Object> dto) {
-        T entity = mapper.toEntity(dto, entityClass);
-        T merged = em.merge(entity);
-        return mapper.toMap(merged);
+    public DTO update(DTO dto) {
+        ENTITY entity = mapper.toEntity(dto);
+        ENTITY merged = em.merge(entity);
+        return mapper.toDto(merged);
     }
 
     @Transactional
     public void delete(Object id) {
-        T ref = em.getReference(entityClass, id);
+        ENTITY ref = em.getReference(entityClass, id);
         em.remove(ref);
     }
 
-    /* ----------  HELPER METHODS FOR EXTENSIONS  ---------- */
-    protected List<T> findByQuery(String jpql, Object... params) {
-        TypedQuery<T> query = em.createQuery(jpql, entityClass);
-        for (int i = 0; i < params.length; i++) {
-            query.setParameter(i + 1, params[i]);
+    @Transactional
+    public DTO patch(String id, JsonObject patchJson) {
+        DTO existingDto = findById(id);
+        if (existingDto == null) {
+            throw new NotFoundException("Entity not found");
         }
-        return query.getResultList();
+
+        // Convert DTO to JSON
+        JsonObject existingJson = Json.createObjectBuilder()
+                .add("id", ((BaseDTO) existingDto).getGuid() ) // Extend this to include all fields as needed
+                .build();
+
+        // Apply patch
+        JsonMergePatch mergePatch = Json.createMergePatch(patchJson);
+        JsonValue patchedValue = mergePatch.apply(existingJson);
+        JsonObject patchedJson = patchedValue.asJsonObject();
+
+        // Deserialize into new DTO (or manually hydrate)
+        DTO patchedDto = jsonToDto(patchedJson);
+        patchedDto.setGuid(id); // ensure ID is preserved
+
+        return update(patchedDto);
     }
 
-    protected List<Map<String, Object>> findByQueryAsMap(String jpql, Object... params) {
-        return findByQuery(jpql, params).stream()
-                .map(mapper::toMap)
-                .collect(Collectors.toList());
+    private DTO jsonToDto(JsonObject json) {
+        return jsonb.fromJson(json.toString(), dtoClass);
     }
 
-    protected T findSingleByQuery(String jpql, Object... params) {
-        return findByQuery(jpql, params).stream().findFirst().orElse(null);
-    }
 
-    protected Map<String, Object> findSingleByQueryAsMap(String jpql, Object... params) {
-        T entity = findSingleByQuery(jpql, params);
-        return mapper.toMap(entity);
-    }
 }

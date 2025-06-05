@@ -1,23 +1,22 @@
 package dev.hyperapi.runtime.core.llm;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import dev.hyperapi.runtime.annotations.ExposeAPI;
+import dev.hyperapi.runtime.core.processor.annotations.RestService;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.jboss.logging.Logger;
-import org.eclipse.microprofile.config.ConfigProvider;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Set;
+import java.util.logging.Level;
+import org.eclipse.microprofile.config.ConfigProvider;
+import org.jboss.logging.Logger;
 
 @ApplicationScoped
 public class OllamaLLMDocService implements LLMDocService {
@@ -70,19 +69,24 @@ public class OllamaLLMDocService implements LLMDocService {
 
     @Override
     public Uni<String> generateFor(Class<?> entity) {
-        String prompt = buildPrompt(entity);
+        String prompt = "";
+        try {
+            prompt = buildPrompt(entity);
+        } catch (ClassNotFoundException ex) {
+            java.util.logging.Logger.getLogger(OllamaLLMDocService.class.getName()).log(Level.SEVERE, null, ex);
+        }
         return generateOpenApiDoc(prompt);
     }
 
-    private String buildPrompt(Class<?> entity) {
+    private String buildPrompt(Class<?> entity) throws ClassNotFoundException {
 
 
         Set<String> ignoredFields = Set.of();
 
         // Use DTO override if defined in @ExposeAPI
-        ExposeAPI annotation = entity.getAnnotation(ExposeAPI.class);
-        if (annotation != null && annotation.dto() != Void.class) {
-            entity = annotation.dto();
+        RestService annotation = entity.getAnnotation(RestService.class);
+        if (annotation != null && annotation.dto() != "") {
+            entity = Class.forName(annotation.dto());
         } else {
             assert annotation != null;
             ignoredFields = Set.of(annotation.mapping().ignore());

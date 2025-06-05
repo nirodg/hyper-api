@@ -1,6 +1,6 @@
 package dev.hyperapi.runtime.core.registry;
 
-import dev.hyperapi.runtime.annotations.ExposeAPI;
+import dev.hyperapi.runtime.core.processor.annotations.RestService;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.Entity;
@@ -36,7 +36,7 @@ public class EntityRegistry {
         Reflections reflections = new Reflections(cfg);
 
         exposed = reflections.getTypesAnnotatedWith(Entity.class).stream()
-                .filter(c -> c.isAnnotationPresent(ExposeAPI.class))
+                .filter(c -> c.isAnnotationPresent(RestService.class))
                 .collect(Collectors.toUnmodifiableSet());
     }
 

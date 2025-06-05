@@ -1,6 +1,6 @@
-package dev.hyperapi.runtime.annotations;
+package dev.hyperapi.runtime.core.processor.annotations;
 
-import jakarta.ws.rs.HttpMethod;
+
 import java.lang.annotation.*;
 
 /**
@@ -9,44 +9,39 @@ import java.lang.annotation.*;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface ExposeAPI {
+public @interface RestService {
 
-    /**
-     * Base path override (defaults to entity simple name)
-     */
     String path() default "";
 
-    Class<?> dto() default Void.class; // 🆕 optional DTO override
+    String dto() default "";
 
-    /**
-     * Which HTTP methods will not be served (returning 404)
-     */
-    HttpMethodConfig disabledFor() default @HttpMethodConfig;
+    Scope scope() default Scope.APPLICATION;
 
-    /**
+    HttpMethodConfig disabledFor() default @HttpMethodConfig(disabledFor = {});
 
-     * Which HTTP methods will not be served (returning 404)
-     */
-    HttpMethodConfig disabledFor() default @HttpMethodConfig;
+    Mapping mapping() default @Mapping(ignore = {});
 
-    /**
-     * Which fields to ignore (for mapping)
-     */
-    Mapping mapping() default @Mapping;
+    Pageable pageable() default @Pageable(limit = 20, maxLimit = 100);
 
-    /**
-     * Pagination settings
-     */
-    Pageable pageable() default @Pageable;
+    Patchable patchable() default @Patchable(exclude = {});
 
-  
-    Events events() default @Events;
+    Events events() default @Events(onCreate = false, onUpdate = false, onDelete = false);
 
-    /**
-     * Caching configuration
-     */
-    Cache cache() default @Cache;
-  
+    Cache cache() default @Cache(enabled = false, ttlSeconds = 60);
+
+    Security security() default @Security(rolesAllowed = {}, requireAuth = false);
+
+    enum Type {
+        /**
+         * Generates @Mapping(target="X", ignore=true) inside toDto(...)
+         */
+        TO_DTO,
+        /**
+         * Generates @Mapping(target="Y", ignore=true) inside toEntity(...)
+         */
+        TO_ENTITY
+    }
+
     @interface HttpMethodConfig {
         /**
          * HTTP methods for which this API is disabled
@@ -56,6 +51,7 @@ public @interface ExposeAPI {
 
     @interface Mapping {
         String[] ignore() default {};
+        String[] ignoreNested() default {};
     }
 
     @interface Pageable {
@@ -92,7 +88,9 @@ public @interface ExposeAPI {
 
     @interface Events {
         boolean onCreate() default false;
+
         boolean onUpdate() default false;
+
         boolean onDelete() default false;
     }
 
@@ -105,11 +103,21 @@ public @interface ExposeAPI {
         int ttlSeconds() default 60;
     }
 
-    @interface Patchable {
-        /**
-         * List of DTO attributes to exclude from PATCH
-         */
-        String[] exclude() default {};
+    enum Scope {
+        APPLICATION("jakarta.enterprise.context.ApplicationScoped"),
+        REQUEST("jakarta.enterprise.context.RequestScoped"),
+        SESSION("jakarta.enterprise.context.SessionScoped"),
+        DEPENDENT("jakarta.enterprise.context.DependentScoped");
+
+        private final String scopeClass;
+
+        Scope(String scopeClass) {
+            this.scopeClass = scopeClass;
+        }
+
+        public String getScopeClass() {
+            return scopeClass;
+        }
     }
 
 }
