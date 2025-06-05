@@ -23,6 +23,7 @@ public abstract class RestController<
     @GET
     public List<DTO> getAll(@QueryParam("offset") @DefaultValue("0") int offset, @QueryParam("limit") @DefaultValue("20") int limit) {
         return getService().findAll(offset, limit);
+
     }
 
     @GET
