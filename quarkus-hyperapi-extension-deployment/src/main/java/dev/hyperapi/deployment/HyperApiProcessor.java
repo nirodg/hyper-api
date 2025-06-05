@@ -10,25 +10,20 @@ import io.quarkus.deployment.builditem.FeatureBuildItem;
 
 public final class HyperApiProcessor {
 
-    private static final String FEATURE_NAME = "hyperapi";
+  private static final String FEATURE_NAME = "hyperapi";
 
-    @BuildStep
-    FeatureBuildItem feature() {
-        return new FeatureBuildItem(FEATURE_NAME);
-    }
+  @BuildStep
+  FeatureBuildItem feature() {
+    return new FeatureBuildItem(FEATURE_NAME);
+  }
 
-    @BuildStep
-    AdditionalBeanBuildItem beans() {
-        // Make runtime beans unremovable
-        return AdditionalBeanBuildItem.builder()
-                .addBeanClasses(
-                        DtoMapper.class,
-                        EntityRegistry.class,
-                        RestController.class,
-                        GenericCrudService.class
-                )
-                .setUnremovable()
-                .build();
-
-    }
+  @BuildStep
+  AdditionalBeanBuildItem beans() {
+    // Make runtime beans unremovable
+    return AdditionalBeanBuildItem.builder()
+        .addBeanClasses(
+            DtoMapper.class, EntityRegistry.class, RestController.class, GenericCrudService.class)
+        .setUnremovable()
+        .build();
+  }
 }

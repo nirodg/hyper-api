@@ -13,32 +13,32 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * S small helper bean that, for each exposed entity, reads and caches its
- *
- * @ExposeAPI settings
+ * S small helper bean that, for each exposed entity, reads and caches its @ExposeAPI settings
  *
  * @author brage
  */
 @ApplicationScoped
 public class EntityConfigProvider {
 
-    @Inject
-    private EntityRegistry registry;
+  @Inject private EntityRegistry registry;
 
-    private final Map<Class<?>, RestService> config = new ConcurrentHashMap<>();
+  private final Map<Class<?>, RestService> config = new ConcurrentHashMap<>();
 
-    public RestService configFor(Class<?> cls) {
-        return config.computeIfAbsent(cls, c -> {
-            RestService ann = c.getAnnotation(RestService.class);
-            if (ann == null) {
-                throw new IllegalStateException("Entity not @ExposeAPI: " + c);
-            }
-            return ann;
+  public RestService configFor(Class<?> cls) {
+    return config.computeIfAbsent(
+        cls,
+        c -> {
+          RestService ann = c.getAnnotation(RestService.class);
+          if (ann == null) {
+            throw new IllegalStateException("Entity not @ExposeAPI: " + c);
+          }
+          return ann;
         });
-    }
+  }
 
-    public Class<?> resolve(String simple) {
-        return registry.bySimpleName(simple)
-                .orElseThrow(() -> new NotFoundException("Entity not found: " + simple));
-    }
+  public Class<?> resolve(String simple) {
+    return registry
+        .bySimpleName(simple)
+        .orElseThrow(() -> new NotFoundException("Entity not found: " + simple));
+  }
 }

@@ -1,12 +1,12 @@
 package dev.hyperapi.runtime.core.processor;
 
+import java.util.*;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
 import javax.lang.model.util.*;
 import javax.tools.Diagnostic;
-import java.util.*;
 
 public class PathValidator {
     private final Elements elementUtils;

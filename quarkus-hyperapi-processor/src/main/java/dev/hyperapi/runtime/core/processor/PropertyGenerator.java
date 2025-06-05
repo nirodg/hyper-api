@@ -1,16 +1,15 @@
 package dev.hyperapi.runtime.core.processor;
 
 import com.squareup.javapoet.*;
-
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
 
 public class PropertyGenerator {
 

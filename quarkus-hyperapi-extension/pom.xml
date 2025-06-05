@@ -20,7 +20,7 @@
     </properties>
 
     <dependencies>
-        
+
         <dependency>
             <groupId>dev.hyperapi</groupId>
             <artifactId>quarkus-hyperapi-processor</artifactId>

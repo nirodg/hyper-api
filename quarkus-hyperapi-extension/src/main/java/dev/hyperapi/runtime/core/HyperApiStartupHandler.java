@@ -19,35 +19,33 @@ import org.slf4j.LoggerFactory;
 @ApplicationScoped
 public class HyperApiStartupHandler {
 
-    private static final Logger LOG = LoggerFactory.getLogger(HyperApiStartupHandler.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HyperApiStartupHandler.class);
 
-    @Inject
-    Router router;
+  @Inject Router router;
 
-    @Inject
-    LLMDocsRoute llmDocsRoute;
+  @Inject LLMDocsRoute llmDocsRoute;
 
-    @Inject
-    DtoMapper dtoMapper;
+  @Inject DtoMapper dtoMapper;
 
-    @Inject
-    GenericCrudService crudService;
+  @Inject GenericCrudService crudService;
 
-    @Inject
-    EntityRegistry entityRegistry;
+  @Inject EntityRegistry entityRegistry;
 
-    void onStart(@Observes StartupEvent ev) {
-        LOG.info("HyperAPI extension started successfully!");
-        LOG.info("DtoMapper instance: " + (dtoMapper != null ? "OK" : "NULL"));
-        LOG.info("GenericCrudService instance: " + (crudService != null ? "OK" : "NULL"));
+  void onStart(@Observes StartupEvent ev) {
+    LOG.info("HyperAPI extension started successfully!");
+    LOG.info("DtoMapper instance: " + (dtoMapper != null ? "OK" : "NULL"));
+    LOG.info("GenericCrudService instance: " + (crudService != null ? "OK" : "NULL"));
 
-        entityRegistry.all().forEach(entityClass -> {
-            LOG.info("Registered entity: " + entityClass.getName());
-            // Optionally, you can initialize services for each entity
-            // GenericCrudService service = new GenericCrudService(entityClass);
-            // crudService.registerService(entityClass, service);
-        });
+    entityRegistry
+        .all()
+        .forEach(
+            entityClass -> {
+              LOG.info("Registered entity: " + entityClass.getName());
+              // Optionally, you can initialize services for each entity
+              // GenericCrudService service = new GenericCrudService(entityClass);
+              // crudService.registerService(entityClass, service);
+            });
 
-        llmDocsRoute.register(router);
-    }
+    llmDocsRoute.register(router);
+  }
 }

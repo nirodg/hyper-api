@@ -7,11 +7,8 @@ package dev.hyperapi.runtime.annotations;
 import jakarta.ws.rs.NameBinding;
 import java.lang.annotation.*;
 
-/**
- * Use on resource classes or methods to enable HyperAPI security
- */
+/** Use on resource classes or methods to enable HyperAPI security */
 @NameBinding
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Secured {
-}
+public @interface Secured {}

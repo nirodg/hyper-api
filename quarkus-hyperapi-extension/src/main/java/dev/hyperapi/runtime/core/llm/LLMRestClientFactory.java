@@ -10,15 +10,16 @@ import java.net.URI;
 @ApplicationScoped
 public class LLMRestClientFactory {
 
-    @Produces
-    @ApplicationScoped
-    public OllamaRestClient produceClient() {
-        String url = ConfigProvider.getConfig()
-                .getOptionalValue("hyperapi.llm.ollama.base-url", String.class)
-                .orElse("http://localhost:11434");
+  @Produces
+  @ApplicationScoped
+  public OllamaRestClient produceClient() {
+    String url =
+        ConfigProvider.getConfig()
+            .getOptionalValue("hyperapi.llm.ollama.base-url", String.class)
+            .orElse("http://localhost:11434");
 
-        return QuarkusRestClientBuilder.newBuilder()
-                .baseUri(URI.create(url))
-                .build(OllamaRestClient.class);
-    }
+    return QuarkusRestClientBuilder.newBuilder()
+        .baseUri(URI.create(url))
+        .build(OllamaRestClient.class);
+  }
 }
