@@ -14,7 +14,7 @@ public @interface RestService {
 
   Scope scope() default Scope.APPLICATION;
 
-  HttpMethodConfig disabledFor() default @HttpMethodConfig(disabledFor = {});
+  HttpMethod[] disabledFor() default {};
 
   Mapping mapping() default @Mapping(ignore = {});
 
@@ -29,10 +29,8 @@ public @interface RestService {
           rolesAllowed = {},
           requireAuth = false);
 
-  // TODO add support for custom headers
-  @interface HttpMethodConfig {
-    /** HTTP methods for which this API is disabled */
-    jakarta.ws.rs.HttpMethod[] disabledFor() default {};
+  public enum HttpMethod {
+    GET, POST, PUT, PATCH, DELETE
   }
 
   @interface Mapping {
@@ -41,7 +39,6 @@ public @interface RestService {
     String[] ignoreNested() default {};
   }
 
-  // TODO add support for custom query params
   @interface Pageable {
     /** Default page size */
     int limit() default 20;
