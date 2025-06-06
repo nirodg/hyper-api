@@ -4,9 +4,7 @@ import com.google.auto.service.AutoService;
 import com.squareup.javapoet.*;
 import dev.hyperapi.runtime.core.processor.annotations.RestService;
 import jakarta.annotation.Generated;
-import jakarta.ws.rs.DefaultValue;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.*;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -441,7 +439,16 @@ public class RestServiceProcessor extends AbstractProcessor {
                     .addStatement("return service")
                     .build());
 
-    if (restService.pageable() != null) {
+    // Define paging for GetAll method
+    Optional<RestService.HttpMethod> isGetMethodDisabled =
+        Arrays.stream(restService.disabledFor())
+            .filter(
+                r -> {
+                  return r == RestService.HttpMethod.GET;
+                })
+            .findFirst();
+
+    if (restService.pageable() != null && isGetMethodDisabled.isEmpty()) {
       int defaultLimit = restService.pageable().limit();
       int maxLimit = restService.pageable().maxLimit();
 
@@ -478,10 +485,118 @@ public class RestServiceProcessor extends AbstractProcessor {
       ctrl.addMethod(getAll);
     }
 
+    // Disabled user-defined endpoints
+    if (restService.disabledFor().length > 0) {
+
+      Set<String> disabledMethods =
+          Arrays.stream(restService.disabledFor())
+              .map(RestService.HttpMethod::name)
+              .collect(Collectors.toSet());
+
+      disabledMethods.forEach(
+          method -> {
+            if (method.equals("DELETE")) ctrl.addMethod(generateDisabledDeleteMethod(dtoClass));
+            if (method.equals("GET")) {
+              ctrl.addMethod(generateDisabledGetByIdMethod(dtoClass));
+              ctrl.addMethod(generateDisabledGetAllMethod(dtoClass));
+            }
+            if (method.equals("POST")) {
+              ctrl.addMethod(generateDisabledPostMethod(dtoClass));
+            }
+            if (method.equals("PUT")) {
+              ctrl.addMethod(generateDisabledPutMethod(dtoClass));
+            }
+            if (method.equals("PATCH")) {
+              ctrl.addMethod(generateDisabledPatchMethod());
+            }
+          });
+    }
+
     JavaFile.builder(basePackage + ".controller", ctrl.build())
         .indent("    ")
         .build()
         .writeTo(filer);
+  }
+
+  private MethodSpec generateDisabledDeleteMethod(ClassName dtoClass) {
+    return MethodSpec.methodBuilder("delete")
+        .addAnnotation(Override.class)
+        .addModifiers(Modifier.PUBLIC)
+        .addParameter(ParameterSpec.builder(String.class, "id").build())
+        .returns(ClassName.get("jakarta.ws.rs.core", "Response"))
+        .addStatement(
+            "throw new $T($S)",
+            ClassName.get("jakarta.ws.rs", "NotFoundException"),
+            "DELETE method is disabled for this resource")
+        .build();
+  }
+
+  private MethodSpec generateDisabledGetAllMethod(ClassName dtoClass) {
+    return MethodSpec.methodBuilder("getAll")
+        .addAnnotation(Override.class)
+        .addModifiers(Modifier.PUBLIC)
+        .returns(ParameterizedTypeName.get(ClassName.get("java.util", "List"), dtoClass))
+        .addParameter(ParameterSpec.builder(TypeName.INT, "offset").build())
+        .addParameter(ParameterSpec.builder(TypeName.INT, "limit").build())
+        .addStatement(
+            "throw new $T($S)",
+            ClassName.get("jakarta.ws.rs", "NotFoundException"),
+            "Get All method is disabled for this resource")
+        .build();
+  }
+
+  private MethodSpec generateDisabledGetByIdMethod(ClassName dtoClass) {
+    return MethodSpec.methodBuilder("getById")
+        .addAnnotation(Override.class)
+        .addModifiers(Modifier.PUBLIC)
+        .returns(ClassName.get("jakarta.ws.rs.core", "Response"))
+        .addParameter(ParameterSpec.builder(String.class, "id").build())
+        .addStatement(
+            "throw new $T($S)",
+            ClassName.get("jakarta.ws.rs", "NotFoundException"),
+            "Get By Id method is disabled for this resource")
+        .build();
+  }
+
+  private MethodSpec generateDisabledPostMethod(ClassName dtoClass) {
+    return MethodSpec.methodBuilder("create")
+        .addAnnotation(Override.class)
+        .addModifiers(Modifier.PUBLIC)
+        .returns(ClassName.get("jakarta.ws.rs.core", "Response"))
+        .addParameter(dtoClass, "dto")
+        .addStatement(
+            "throw new $T($S)",
+            ClassName.get("jakarta.ws.rs", "NotFoundException"),
+            "POST method is disabled for this resource")
+        .build();
+  }
+
+  private MethodSpec generateDisabledPutMethod(ClassName dtoClass) {
+    return MethodSpec.methodBuilder("update")
+        .addAnnotation(Override.class)
+        .addModifiers(Modifier.PUBLIC)
+        .returns(ClassName.get("jakarta.ws.rs.core", "Response"))
+        .addParameter(ParameterSpec.builder(String.class, "id").build())
+        .addParameter(dtoClass, "dto")
+        .addStatement(
+            "throw new $T($S)",
+            ClassName.get("jakarta.ws.rs", "NotFoundException"),
+            "PUT method is disabled for this resource")
+        .build();
+  }
+
+  private MethodSpec generateDisabledPatchMethod() {
+    return MethodSpec.methodBuilder("patch")
+        .addAnnotation(Override.class)
+        .addModifiers(Modifier.PUBLIC)
+        .returns(ClassName.get("jakarta.ws.rs.core", "Response"))
+        .addParameter(ParameterSpec.builder(String.class, "id").build())
+        .addParameter(ClassName.get("jakarta.json", "JsonObject"), "patchJson")
+        .addStatement(
+            "throw new $T($S)",
+            ClassName.get("jakarta.ws.rs", "NotFoundException"),
+            "PATH method is disabled for this resource")
+        .build();
   }
 
   private void error(Element e, String msg) {
