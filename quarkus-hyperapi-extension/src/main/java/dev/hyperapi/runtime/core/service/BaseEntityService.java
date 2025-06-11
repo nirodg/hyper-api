@@ -11,6 +11,7 @@ import jakarta.json.JsonObject;
 import jakarta.json.JsonValue;
 import jakarta.json.bind.Jsonb;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
@@ -34,7 +35,8 @@ public abstract class BaseEntityService<
     this.dtoClass = dtoClass;
   }
 
-  @Inject protected EntityManager em;
+  @PersistenceContext
+  protected EntityManager em;
 
   @Inject protected MAPPER mapper;
 

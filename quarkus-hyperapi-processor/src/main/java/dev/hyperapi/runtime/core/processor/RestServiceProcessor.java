@@ -360,6 +360,7 @@ public class RestServiceProcessor extends AbstractProcessor {
     String strCustomEmitter = customEmitter ? "emitter.emit" : "fireEvent";
     return MethodSpec.methodBuilder("create")
         .addAnnotation(Override.class)
+        .addAnnotation(ClassName.get("jakarta.transaction", "Transactional"))
         .addModifiers(Modifier.PUBLIC)
         .returns(dtoClass)
         .addParameter(dtoClass, "dto")
@@ -376,6 +377,7 @@ public class RestServiceProcessor extends AbstractProcessor {
 
     return MethodSpec.methodBuilder("update")
         .addAnnotation(Override.class)
+        .addAnnotation(ClassName.get("jakarta.transaction", "Transactional"))
         .addModifiers(Modifier.PUBLIC)
         .returns(dtoClass)
         .addParameter(dtoClass, "dto")
@@ -391,6 +393,7 @@ public class RestServiceProcessor extends AbstractProcessor {
 
     return MethodSpec.methodBuilder("delete")
         .addAnnotation(Override.class)
+        .addAnnotation(ClassName.get("jakarta.transaction", "Transactional"))
         .addModifiers(Modifier.PUBLIC)
         .returns(TypeName.VOID)
         .addParameter(TypeName.OBJECT, "id")
@@ -406,13 +409,15 @@ public class RestServiceProcessor extends AbstractProcessor {
 
     return MethodSpec.methodBuilder("patch")
         .addAnnotation(Override.class)
+        .addAnnotation(ClassName.get("jakarta.transaction", "Transactional"))
         .addModifiers(Modifier.PUBLIC)
         .returns(dtoClass)
         .addParameter(ParameterSpec.builder(ClassName.get(String.class), "id").build())
         .addParameter(
             ParameterSpec.builder(ClassName.get("jakarta.json", "JsonObject"), "patchJson").build())
         .addStatement("$T result = super.patch(id, patchJson)", dtoClass)
-        .addStatement(strCustomEmitter + "($T.Type.UPDATE, mapper.toEntity(result))", entityEventClass)
+        .addStatement(
+            strCustomEmitter + "($T.Type.UPDATE, mapper.toEntity(result))", entityEventClass)
         .addStatement("return result")
         .build();
   }

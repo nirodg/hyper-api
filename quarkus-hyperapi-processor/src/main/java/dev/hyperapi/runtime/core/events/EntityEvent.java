@@ -1,8 +1,13 @@
 package dev.hyperapi.runtime.core.events;
 
+import lombok.Getter;
+import lombok.ToString;
+
+@Getter
+@ToString
 public class EntityEvent<BaseEntity> {
 
-    public enum Type {
+  public enum Type {
     CREATE,
     UPDATE,
     DELETE
@@ -14,5 +19,4 @@ public class EntityEvent<BaseEntity> {
     this.type = type;
     this.entity = entity;
   }
-
 }
