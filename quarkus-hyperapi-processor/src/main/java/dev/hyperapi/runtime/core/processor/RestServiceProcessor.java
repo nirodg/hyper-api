@@ -12,10 +12,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
@@ -68,7 +65,7 @@ public class RestServiceProcessor extends AbstractProcessor {
       try {
         generateDTO(entityType, dtoName, ignoredFields);
         generateMapper(entityType, dtoName, ignoredFields, ignoredNestedFields);
-        generateService(entityType, dtoName);
+        generateService(entityType, dtoName, restService);
         generateController(entityType, dtoName, restService);
       } catch (IOException | ClassNotFoundException e) {
         error(entityType, "Code generation failed: " + e.getMessage());
@@ -357,7 +354,71 @@ public class RestServiceProcessor extends AbstractProcessor {
     }
   }
 
-  private void generateService(TypeElement entity, String dtoName) throws IOException {
+  private MethodSpec generateCreateOverride(
+      ClassName dtoClass, ClassName entityEventClass, boolean customEmitter) {
+
+    String strCustomEmitter = customEmitter ? "emitter.emit" : "fireEvent";
+    return MethodSpec.methodBuilder("create")
+        .addAnnotation(Override.class)
+        .addModifiers(Modifier.PUBLIC)
+        .returns(dtoClass)
+        .addParameter(dtoClass, "dto")
+        .addStatement("$T result = super.create(dto)", dtoClass)
+        .addStatement(
+            strCustomEmitter + "($T.Type.CREATE, mapper.toEntity(result))", entityEventClass)
+        .addStatement("return result")
+        .build();
+  }
+
+  private MethodSpec generateUpdateOverride(
+      ClassName dtoClass, ClassName entityEventClass, boolean customEmitter) {
+    String strCustomEmitter = customEmitter ? "emitter.emit" : "fireEvent";
+
+    return MethodSpec.methodBuilder("update")
+        .addAnnotation(Override.class)
+        .addModifiers(Modifier.PUBLIC)
+        .returns(dtoClass)
+        .addParameter(dtoClass, "dto")
+        .addStatement("$T result = super.update(dto)", dtoClass)
+        .addStatement(
+            strCustomEmitter + "($T.Type.UPDATE, mapper.toEntity(result))", entityEventClass)
+        .addStatement("return result")
+        .build();
+  }
+
+  private MethodSpec generateDeleteOverride(ClassName entityEventClass, boolean customEmitter) {
+    String strCustomEmitter = customEmitter ? "emitter.emit" : "fireEvent";
+
+    return MethodSpec.methodBuilder("delete")
+        .addAnnotation(Override.class)
+        .addModifiers(Modifier.PUBLIC)
+        .returns(TypeName.VOID)
+        .addParameter(TypeName.OBJECT, "id")
+        .addStatement("super.delete(id)")
+        .addStatement(
+            strCustomEmitter + "($T.Type.DELETE, null)", entityEventClass) // if you don’t re-fetch
+        .build();
+  }
+
+  private MethodSpec generatePatchOverride(
+      ClassName dtoClass, ClassName entityEventClass, boolean customEmitter) {
+    String strCustomEmitter = customEmitter ? "emitter.emit" : "fireEvent";
+
+    return MethodSpec.methodBuilder("patch")
+        .addAnnotation(Override.class)
+        .addModifiers(Modifier.PUBLIC)
+        .returns(dtoClass)
+        .addParameter(ParameterSpec.builder(ClassName.get(String.class), "id").build())
+        .addParameter(
+            ParameterSpec.builder(ClassName.get("jakarta.json", "JsonObject"), "patchJson").build())
+        .addStatement("$T result = super.patch(id, patchJson)", dtoClass)
+        .addStatement(strCustomEmitter + "($T.Type.UPDATE, mapper.toEntity(result))", entityEventClass)
+        .addStatement("return result")
+        .build();
+  }
+
+  private void generateService(TypeElement entity, String dtoName, RestService restService)
+      throws IOException, ClassNotFoundException {
     String entityName = entity.getSimpleName().toString();
     String basePackage = elementUtils.getPackageOf(entity).getQualifiedName().toString();
     String serviceName = entityName + "Service";
@@ -366,6 +427,12 @@ public class RestServiceProcessor extends AbstractProcessor {
     ClassName entityClass = ClassName.get(basePackage, entityName);
     ClassName mapperClass = ClassName.get(basePackage + ".mapper", entityName + "Mapper");
 
+    RestService.Events events = restService.events();
+    boolean fireOnCreate = events.onCreate();
+    boolean fireOnUpdate = events.onUpdate();
+    boolean fireOnDelete = events.onDelete();
+    boolean fireOnPatch = events.onDelete();
+
     TypeName superType =
         ParameterizedTypeName.get(
             ClassName.get("dev.hyperapi.runtime.core.service", "BaseEntityService"),
@@ -373,20 +440,94 @@ public class RestServiceProcessor extends AbstractProcessor {
             dtoClass,
             mapperClass);
 
-    TypeSpec serviceClass =
+    MethodSpec.Builder constructor =
+        MethodSpec.constructorBuilder()
+            .addModifiers(Modifier.PUBLIC)
+            .addStatement("super($T.class, $T.class)", entityClass, dtoClass);
+
+    TypeSpec.Builder serviceClass =
         TypeSpec.classBuilder(serviceName)
             .addModifiers(Modifier.PUBLIC)
             .addAnnotation(generatedAnnotation())
             .addAnnotation(ClassName.get("jakarta.enterprise.context", "ApplicationScoped"))
-            .superclass(superType)
-            .addMethod(
-                MethodSpec.constructorBuilder()
-                    .addModifiers(Modifier.PUBLIC)
-                    .addStatement("super($T.class, $T.class)", entityClass, dtoClass)
-                    .build())
-            .build();
+            .superclass(superType);
 
-    JavaFile.builder(basePackage + ".service", serviceClass).indent("    ").build().writeTo(filer);
+    Optional<TypeMirror> emitterMirror = getEmitterTypeMirror(entity);
+
+    if (fireOnCreate) {
+      MethodSpec method =
+          generateCreateOverride(
+              dtoClass,
+              ClassName.get("dev.hyperapi.runtime.core.events", "EntityEvent"),
+              emitterMirror.isPresent());
+      serviceClass.addMethod(method);
+    }
+
+    if (fireOnUpdate) {
+      MethodSpec method =
+          generateUpdateOverride(
+              dtoClass,
+              ClassName.get("dev.hyperapi.runtime.core.events", "EntityEvent"),
+              emitterMirror.isPresent());
+      serviceClass.addMethod(method);
+    }
+
+    if (fireOnDelete) {
+      MethodSpec method =
+          generateDeleteOverride(
+              ClassName.get("dev.hyperapi.runtime.core.events", "EntityEvent"),
+              emitterMirror.isPresent());
+      serviceClass.addMethod(method);
+    }
+
+    if (fireOnPatch) {
+      MethodSpec method =
+          generatePatchOverride(
+              dtoClass,
+              ClassName.get("dev.hyperapi.runtime.core.events", "EntityEvent"),
+              emitterMirror.isPresent());
+      serviceClass.addMethod(method);
+    }
+
+    // Inject custom emitter if specified
+    emitterMirror.ifPresent(
+        typeMirror ->
+            serviceClass.addField(
+                FieldSpec.builder(
+                        ParameterizedTypeName.get(typeMirror), "emitter", Modifier.PRIVATE)
+                    .addAnnotation(ClassName.get("jakarta.inject", "Inject"))
+                    .build()));
+
+    serviceClass.addMethod(constructor.build());
+
+    JavaFile.builder(basePackage + ".service", serviceClass.build())
+        .indent("    ")
+        .build()
+        .writeTo(filer);
+  }
+
+  private Optional<TypeMirror> getEmitterTypeMirror(TypeElement element) {
+    for (AnnotationMirror annotation : element.getAnnotationMirrors()) {
+      if (!annotation
+          .getAnnotationType()
+          .toString()
+          .equals("dev.hyperapi.runtime.core.processor.annotations.RestService")) continue;
+
+      for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+          annotation.getElementValues().entrySet()) {
+        if (!entry.getKey().getSimpleName().contentEquals("events")) continue;
+
+        AnnotationMirror events = (AnnotationMirror) entry.getValue().getValue();
+
+        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> ev :
+            events.getElementValues().entrySet()) {
+          if (ev.getKey().getSimpleName().contentEquals("emitter")) {
+            return Optional.of((TypeMirror) ev.getValue().getValue());
+          }
+        }
+      }
+    }
+    return Optional.empty();
   }
 
   private void generateController(TypeElement entity, String dtoName, RestService restService)

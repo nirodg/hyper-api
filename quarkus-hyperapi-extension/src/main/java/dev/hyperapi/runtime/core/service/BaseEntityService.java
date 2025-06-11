@@ -1,6 +1,7 @@
 package dev.hyperapi.runtime.core.service;
 
 import dev.hyperapi.runtime.core.dto.BaseDTO;
+import dev.hyperapi.runtime.core.events.EntityEvent;
 import dev.hyperapi.runtime.core.mapper.AbstractMapper;
 import dev.hyperapi.runtime.core.model.BaseEntity;
 import jakarta.inject.Inject;
@@ -38,6 +39,8 @@ public abstract class BaseEntityService<
   @Inject protected MAPPER mapper;
 
   @Inject Jsonb jsonb;
+
+  @Inject jakarta.enterprise.event.Event<EntityEvent<ENTITY>> event;
 
   public List<DTO> findAll(int offset, int limit) {
     String jpql = "SELECT e FROM " + entityClass.getSimpleName() + " e";
@@ -101,5 +104,11 @@ public abstract class BaseEntityService<
 
   private DTO jsonToDto(JsonObject json) {
     return jsonb.fromJson(json.toString(), dtoClass);
+  }
+
+  protected void fireEvent(EntityEvent.Type type, ENTITY entity) {
+    if (event != null && entity != null) {
+      event.fire(new EntityEvent<>(type, entity));
+    }
   }
 }
