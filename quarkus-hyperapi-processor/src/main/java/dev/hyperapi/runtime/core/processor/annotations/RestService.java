@@ -1,5 +1,7 @@
 package dev.hyperapi.runtime.core.processor.annotations;
 
+import dev.hyperapi.runtime.core.events.CdiEntityEmitter;
+import dev.hyperapi.runtime.core.events.EntityEmitter;
 import java.lang.annotation.*;
 
 /** Marks a JPA entity to be exposed automatically by HyperAPI. */
@@ -30,7 +32,11 @@ public @interface RestService {
           requireAuth = false);
 
   public enum HttpMethod {
-    GET, POST, PUT, PATCH, DELETE
+    GET,
+    POST,
+    PUT,
+    PATCH,
+    DELETE
   }
 
   @interface Mapping {
@@ -59,13 +65,16 @@ public @interface RestService {
     boolean requireAuth() default false;
   }
 
-  // TODO add support for custom events
   @interface Events {
     boolean onCreate() default false;
 
     boolean onUpdate() default false;
 
     boolean onDelete() default false;
+
+    boolean onPatch() default false;
+
+    Class<? extends EntityEmitter> emitter() default CdiEntityEmitter.class;
   }
 
   // TODO add support for custom cache annotations
