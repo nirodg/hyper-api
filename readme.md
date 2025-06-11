@@ -165,6 +165,11 @@ curl -H "Authorization: Bearer <jwt>" \
 
 Explore implementation guides for key HyperAPI features:
 
+### Core
+- [Rest API definition](docs/api-path.md) - Generatin the CRUD endpoints, automatically!
+- [DTO Generation](docs/custom-dto.md) - Generating DTOs from JPAs, automatically! 
+- [DTO Mapping](docs/dto-mapping.md) - Ignoring unnecessary fields
+
 ### Event System
 - [CDI Events Overview](docs/events-cdi.md) - Basic event observation patterns
 - [Advanced Event Processing](docs/events-cdi-complex.md) - Multi-stage event pipelines
