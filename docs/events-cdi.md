@@ -1,4 +1,4 @@
-# Automatic Event System 🚀
+# Automatic Event System with CDI Observers 🚀
 
 ## How It Works
 
@@ -100,5 +100,19 @@ public void asyncProcessing(@ObservesAsync EntityEvent<Order> event) {
     // Long-running task
 }
 ```
+
+---
+
+
+## 📈 Extending for Update/Delete Events
+
+
+| Event   | Types          | Requires Config |
+|---------|----------------|-----------------|
+| CREATE  | 	post-persist	 | onCreate=true   |
+| UPDATE	 | post-merge	    | onUpdate=true   |
+| DELETE  | 	post-remove	  | onDelete=true   |
+---
+
 
 > ⚠️ Important: Events will be silently ignored if no observer exists for them. Always verify your observers are properly registered in CDI context.

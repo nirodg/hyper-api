@@ -1,7 +1,7 @@
 # 🚀 HyperAPI  
 **A Quarkus extension for instant, zero-boilerplate, secured CRUD APIs**
 
-HyperAPI scans your JPA entities, finds those annotated with `@ExposeAPI`, and – at **runtime** – wires complete REST endpoints, DTO mapping, and role-based access control. No controllers, no services, no MapStruct classes to write by hand.
+HyperAPI scans your JPA entities, finds those annotated with `@ExposeAPI`, and – during **compilation (soon features at runtime)** – wires complete REST endpoints, DTO mapping, Services, Events and role-based access control. No controllers, no services, no MapStruct classes to write by hand.
 
 ## ⚠️ Important Notice
 
@@ -26,15 +26,15 @@ HyperAPI scans your JPA entities, finds those annotated with `@ExposeAPI`, and �
 
 ## ✨ Features (implemented today)
 
-| Capability | What it does |
-|------------|--------------|
-| **Automatic entity discovery** | Scans packages set in `hyperapi.scan-packages` and detects every `@Entity @ExposeAPI` class. |
-| **Generic CRUD endpoints** | Exposes `GET / POST / PUT / DELETE` at `/api/{Entity}` or your custom path. |
-| **Runtime DTO mapping** | Converts entity ⇄ `Map<String,Object>`; unwraps Hibernate/CDI proxies; hides fields flagged in `@ExposeAPI(mapping.ignore)`. |
-| **Annotation-driven security** | `@ExposeAPI.security(requireAuth, rolesAllowed)` → returns `401/403` via a name-bound JAX-RS filter. |
-| **Standard JSON error payload** | Uniform `ApiError` body with timestamp, HTTP status, message, path, and `WWW-Authenticate` header on 401. |
-| **Quarkus-native extension packaging** | Published as `quarkus-hyperapi-extension` (runtime) + `quarkus-hyperapi-deployment` (build-time). |
-
+| Capability                                       | What it does                                                                                              |
+|--------------------------------------------------|-----------------------------------------------------------------------------------------------------------|
+| **Generic CRUD endpoints**                       | Exposes `GET / POST / PUT / DELETE` at `/api/{Entity}` or your custom path.                               |
+ | **Generate DTO**                                 | Automatically fetches the JPA's fields and generated a DTO version of if, it's constumizable.             |           |
+| **Generate at compile DTO mapping**              | Automatically generated a Mapper and on top of it MapStruct generates the implementation                  |
+| **Annotation-driven security** (not implemented) | `@ExposeAPI.security(requireAuth, rolesAllowed)` → returns `401/403` via a name-bound JAX-RS filter.      |
+| **Standard JSON error payload**                  | Uniform `ApiError` body with timestamp, HTTP status, message, path, and `WWW-Authenticate` header on 401. |
+| **Quarkus-native extension packaging**           | Published as `quarkus-hyperapi-extension` (runtime) + `quarkus-hyperapi-deployment` (build-time).         |
+ | **Event mechanism**                              | Offers customizable Event Pattern for events on create/update/delete                                      |                                     |                                                                        |
 ---
 
 ## 🛠 Quick start
@@ -111,51 +111,81 @@ curl -X POST http://localhost:8080/api/products \
 curl -H "Authorization: Bearer <jwt>" \
      http://localhost:8080/api/products
 ```
-## 🧩 @ExposeAPI — full reference
-```
-@ExposeAPI(
-    /** 1️⃣  URL base path (default: entity simple name) */
+## 🧩 @RestService — Full Annotation Reference
+
+```java
+@RestService(
+    /** 1️⃣ Base API path (default: entity name) */
     path = "/orders",
-
-    /** 2️⃣  Field filtering */
-    mapping = @Mapping(ignore = {"secret", "version"}),
-
-    /** 3️⃣  Pagination defaults (🔜 feature) */
-    pageable = @Pageable(limit = 50, maxLimit = 200),
-
-    /** 4️⃣  Security */
-    security = @Security(
-        requireAuth  = true,                 // false ⇒ anonymous allowed
-        rolesAllowed = { "ADMIN", "MANAGER" }
+    
+    /** 2️⃣ Custom DTO class (default: auto-generated) */
+    dto = "com.example.CustomOrderDTO",
+    
+    /** 3️⃣ CDI scope for generated service */
+    scope = Scope.REQUEST,
+    
+    /** 4️⃣ Disabled HTTP methods */
+    disabledFor = {HttpMethod.PATCH, HttpMethod.DELETE},
+    
+    /** 5️⃣ Field filtering */
+    mapping = @Mapping(
+        ignore = {"secret"},       // Top-level fields
+        ignoreNested = {"user.password"}  // Nested object fields
     ),
-
-    /** 5️⃣  CDI lifecycle events (🔜) */
-    events = @Events(onCreate = true, onUpdate = true, onDelete = false),
-
-    /** 6️⃣  Response-level cache (🔜) */
-    cache = @Cache(enabled = true, ttlSeconds = 300)
+    
+    /** 6️⃣ Pagination controls */
+    pageable = @Pageable(
+        limit = 50,      // Default page size
+        maxLimit = 200   // Maximum allowed page size
+    ),
+    
+    /** 7️⃣ Event configuration */
+    events = @Events(
+        onCreate = true,    // Fire on entity creation
+        onUpdate = true,    // Fire on entity update  
+        onDelete = false,   // Disable delete events
+        emitter = CustomEmitter.class  // Custom event emitter
+    ),
+    
+    /** 8️⃣ Caching behavior  | NOT YET IMPLEMENTED */
+    cache = @Cache(
+        enabled = true,     // Enable response caching
+        ttlSeconds = 300    // 5-minute cache duration
+    ),
+    
+    /** 9️⃣ Security controls | NOT YET IMPLEMENTED */
+    security = @Security(
+        requireAuth = true,            // Authentication required
+        rolesAllowed = {"ORDER_ADMIN"}  // Required roles
+    )
 )
-class Order { … }
-```
-Section	Purpose	Implemented
-path	Override REST base path	✅
-mapping.ignore	Hide sensitive or technical fields	✅
-pageable	Default / max page sizes	🔜
-security.requireAuth	Force authentication (401)	✅
-security.rolesAllowed	Allowed roles (403)	✅
-events	Fire CDI events on CRUD	🔜
-cache	Per-entity GET cache	🔜
+
+
+## 📚 Documentation
+
+Explore implementation guides for key HyperAPI features:
+
+### Event System
+- [CDI Events Overview](docs/events-cdi.md) - Basic event observation patterns
+- [Advanced Event Processing](docs/events-cdi-complex.md) - Multi-stage event pipelines
+- [Kafka Integration](docs/events-kafka-producer.md) - Streaming events to Kafka
+- [MQTT Integration](docs/events-mqtt-producer.md) - IoT/edge computing scenarios
+- [API Gateway Patterns](docs/events-cdi-external-apis.md) - Sync/async external API calls
+
 
 ## 🛣 Roadmap
+- ✅ Generate mappers
 - ✅ Field-ignore mapping
-- ✅ Annotation-first security
-- 🔜 Pagination & sorting
-- 🔜 PATCH (partial updates)
-- 🔜 CDI events on create/update/delete
+- ✅ Generate Services
+- ✅ Generate Rest Endpoints (CRUD)
+- 🔜 Annotation-first security
+- ✅ Pagination & sorting
+- ✅ PATCH (partial updates)
+- ✅ CDI events on create/update/delete
 - 🔜 In-memory caching
 - 🔜 Auto-generated OpenAPI docs
 
-Contributions and feedback welcome—let’s make HyperAPI even more awesome!
+Contributions and feedback welcome — let’s make HyperAPI even more awesome!
 
 ## 📄 License
 HyperAPI is licensed under the Apache 2.0 License. See the LICENSE file for details.
