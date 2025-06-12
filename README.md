@@ -111,7 +111,8 @@ curl -X POST http://localhost:8080/api/products \
 curl -H "Authorization: Bearer <jwt>" \
      http://localhost:8080/api/products
 ```
-## 🧩 @RestService — Full Annotation Reference
+## 🧩 @RestService — Annotation Reference
+> For full reference please see the [@RestService](https://github.com/nirodg/hyper-api/blob/dev/quarkus-hyperapi-processor/src/main/java/dev/hyperapi/runtime/core/processor/annotations/RestService.java)
 
 ```java
 @RestService(
@@ -159,7 +160,7 @@ curl -H "Authorization: Bearer <jwt>" \
         rolesAllowed = {"ORDER_ADMIN"}  // Required roles
     )
 )
-
+```
 
 ## 📚 Documentation
 
@@ -176,6 +177,8 @@ Explore implementation guides for key HyperAPI features:
 - [Kafka Integration](docs/events-kafka-producer.md) - Streaming events to Kafka
 - [MQTT Integration](docs/events-mqtt-producer.md) - IoT/edge computing scenarios
 - [API Gateway Patterns](docs/events-cdi-external-apis.md) - Sync/async external API calls
+
+
 
 
 ## 🛣 Roadmap
