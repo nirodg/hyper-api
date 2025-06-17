@@ -1,7 +1,7 @@
 # 🚀 HyperAPI  
 **A Quarkus extension for instant, zero-boilerplate, secured CRUD APIs**
 
-HyperAPI scans your JPA entities, finds those annotated with `@ExposeAPI`, and – during **compilation (soon features at runtime)** – wires complete REST endpoints, DTO mapping, Services, Events and role-based access control. No controllers, no services, no MapStruct classes to write by hand.
+HyperAPI scans your JPA entities, finds those annotated with `@RestService`, and – during **compilation (soon features at runtime)** – wires complete REST endpoints, DTO mapping, Services, Events and role-based access control. No controllers, no services, no MapStruct classes to write by hand.
 
 ## ⚠️ Important Notice
 
