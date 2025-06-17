@@ -31,7 +31,7 @@ HyperAPI scans your JPA entities, finds those annotated with `@RestService`, and
 | **Generic CRUD endpoints**                       | Exposes `GET / POST / PUT / DELETE` at `/api/{Entity}` or your custom path.                               |
  | **Generate DTO**                                 | Automatically fetches the JPA's fields and generated a DTO version of if, it's constumizable.             |           |
 | **Generate at compile DTO mapping**              | Automatically generated a Mapper and on top of it MapStruct generates the implementation                  |
-| **Annotation-driven security** (not implemented) | `@ExposeAPI.security(requireAuth, rolesAllowed)` → returns `401/403` via a name-bound JAX-RS filter.      |
+| **Annotation-driven security** (not implemented) | `@RestService.security(requireAuth, rolesAllowed)` → returns `401/403` via a name-bound JAX-RS filter.      |
 | **Standard JSON error payload**                  | Uniform `ApiError` body with timestamp, HTTP status, message, path, and `WWW-Authenticate` header on 401. |
 | **Quarkus-native extension packaging**           | Published as `quarkus-hyperapi-extension` (runtime) + `quarkus-hyperapi-deployment` (build-time).         |
  | **Event mechanism**                              | Offers customizable Event Pattern for events on create/update/delete                                      |                                     |                                                                        |
@@ -67,7 +67,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@ExposeAPI(
+@RestService(
   path = "/products",                       // customise base path
   mapping = @Mapping(ignore = {"version"}), // hide optimistic-lock column
   security = @Security(
