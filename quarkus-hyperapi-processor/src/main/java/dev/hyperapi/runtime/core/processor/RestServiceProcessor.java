@@ -412,7 +412,7 @@ public class RestServiceProcessor extends AbstractProcessor {
         .addAnnotation(ClassName.get("jakarta.transaction", "Transactional"))
         .addModifiers(Modifier.PUBLIC)
         .returns(dtoClass)
-        .addParameter(ParameterSpec.builder(ClassName.get(String.class), "id").build())
+        .addParameter(ParameterSpec.builder(ClassName.get(Object.class), "id").build())
         .addParameter(
             ParameterSpec.builder(ClassName.get("jakarta.json", "JsonObject"), "patchJson").build())
         .addStatement("$T result = super.patch(id, patchJson)", dtoClass)
@@ -443,12 +443,13 @@ public class RestServiceProcessor extends AbstractProcessor {
             ClassName.get("dev.hyperapi.runtime.core.service", "BaseEntityService"),
             entityClass,
             dtoClass,
+            getIdType(entity),
             mapperClass);
 
     MethodSpec.Builder constructor =
         MethodSpec.constructorBuilder()
             .addModifiers(Modifier.PUBLIC)
-            .addStatement("super($T.class, $T.class)", entityClass, dtoClass);
+            .addStatement("super($T.class)", dtoClass);
 
     TypeSpec.Builder serviceClass =
         TypeSpec.classBuilder(serviceName)
@@ -456,6 +457,11 @@ public class RestServiceProcessor extends AbstractProcessor {
             .addAnnotation(generatedAnnotation())
             .addAnnotation(ClassName.get("jakarta.enterprise.context", "ApplicationScoped"))
             .superclass(superType);
+
+
+    // Define injection for the repository
+    MethodSpec repoGetter = generateInjectRepository(entity, basePackage, entityName, serviceClass, entityClass, restService);
+    serviceClass.addMethod(repoGetter);
 
     Optional<TypeMirror> emitterMirror = getEmitterTypeMirror(entity);
 
@@ -511,6 +517,32 @@ public class RestServiceProcessor extends AbstractProcessor {
         .writeTo(filer);
   }
 
+  private MethodSpec generateInjectRepository(TypeElement entity, String basePackage, String entityName, TypeSpec.Builder serviceClass, ClassName entityClass, RestService restService) {
+    // Resolve ID type from entity
+    TypeName idType = getIdType(entity);
+
+    // Add injected repository field
+    ClassName repositoryClass = ClassName.get(basePackage + "." + restService.repositoryPackage(), entityName + "Repository");
+    serviceClass.addField(FieldSpec.builder(repositoryClass, "repository", Modifier.PRIVATE)
+            .addAnnotation(ClassName.get("jakarta.inject", "Inject"))
+            .build());
+
+    // Add repository override method
+    ParameterizedTypeName repoType = ParameterizedTypeName.get(
+            ClassName.get("io.quarkus.hibernate.orm.panache", "PanacheRepositoryBase"),
+            entityClass,
+            idType
+    );
+
+    MethodSpec repoGetter = MethodSpec.methodBuilder("getRepository")
+            .addAnnotation(Override.class)
+            .addModifiers(Modifier.PROTECTED)
+            .returns(repoType)
+            .addStatement("return repository")
+            .build();
+    return repoGetter;
+  }
+
   private Optional<TypeMirror> getEmitterTypeMirror(TypeElement element) {
     for (AnnotationMirror annotation : element.getAnnotationMirrors()) {
       if (!annotation
@@ -551,6 +583,7 @@ public class RestServiceProcessor extends AbstractProcessor {
             ClassName.get("dev.hyperapi.runtime.core.controller", "RestController"),
             dtoClass,
             mapperClass,
+                getIdType(entity),
             entityClass);
 
     String path =
@@ -581,6 +614,7 @@ public class RestServiceProcessor extends AbstractProcessor {
                             ClassName.get("dev.hyperapi.runtime.core.service", "BaseEntityService"),
                             entityClass,
                             dtoClass,
+                                getIdType(entity),
                             mapperClass))
                     .addStatement("return service")
                     .build());
@@ -668,7 +702,7 @@ public class RestServiceProcessor extends AbstractProcessor {
     return MethodSpec.methodBuilder("delete")
         .addAnnotation(Override.class)
         .addModifiers(Modifier.PUBLIC)
-        .addParameter(ParameterSpec.builder(String.class, "id").build())
+        .addParameter(ParameterSpec.builder(Object.class, "id").build())
         .returns(ClassName.get("jakarta.ws.rs.core", "Response"))
         .addStatement(
             "throw new $T($S)",
@@ -696,7 +730,7 @@ public class RestServiceProcessor extends AbstractProcessor {
         .addAnnotation(Override.class)
         .addModifiers(Modifier.PUBLIC)
         .returns(ClassName.get("jakarta.ws.rs.core", "Response"))
-        .addParameter(ParameterSpec.builder(String.class, "id").build())
+        .addParameter(ParameterSpec.builder(Object.class, "id").build())
         .addStatement(
             "throw new $T($S)",
             ClassName.get("jakarta.ws.rs", "NotFoundException"),
@@ -722,7 +756,7 @@ public class RestServiceProcessor extends AbstractProcessor {
         .addAnnotation(Override.class)
         .addModifiers(Modifier.PUBLIC)
         .returns(ClassName.get("jakarta.ws.rs.core", "Response"))
-        .addParameter(ParameterSpec.builder(String.class, "id").build())
+        .addParameter(ParameterSpec.builder(Object.class, "id").build())
         .addParameter(dtoClass, "dto")
         .addStatement(
             "throw new $T($S)",
@@ -736,7 +770,7 @@ public class RestServiceProcessor extends AbstractProcessor {
         .addAnnotation(Override.class)
         .addModifiers(Modifier.PUBLIC)
         .returns(ClassName.get("jakarta.ws.rs.core", "Response"))
-        .addParameter(ParameterSpec.builder(String.class, "id").build())
+        .addParameter(ParameterSpec.builder(Object.class, "id").build())
         .addParameter(ClassName.get("jakarta.json", "JsonObject"), "patchJson")
         .addStatement(
             "throw new $T($S)",
@@ -797,4 +831,23 @@ public class RestServiceProcessor extends AbstractProcessor {
                 "HyperAPI Quarkus Extension"))
         .build();
   }
+
+  private static final String JPA_ID_ANNOTATION = "jakarta.persistence.Id"; // or javax...
+
+  private TypeName getIdType(TypeElement entity) {
+    Optional<? extends Element> idFieldOpt = entity.getEnclosedElements().stream()
+            .filter(e -> e.getKind() == ElementKind.FIELD)
+            .filter(e -> e.getAnnotationMirrors().stream()
+                    .map(am -> am.getAnnotationType().toString())
+                    .anyMatch(name -> name.equals("jakarta.persistence.Id") || name.equals("javax.persistence.Id")))
+            .findFirst();
+
+    if (idFieldOpt.isEmpty()) {
+      warn(entity, "No @Id field found. Defaulting to Object as ID type.");
+      return TypeName.OBJECT;
+    }
+
+    return TypeName.get(idFieldOpt.get().asType());
+  }
+
 }

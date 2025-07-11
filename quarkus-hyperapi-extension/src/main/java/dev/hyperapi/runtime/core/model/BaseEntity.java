@@ -1,5 +1,7 @@
 package dev.hyperapi.runtime.core.model;
 
+import io.quarkus.hibernate.orm.panache.PanacheEntity;
+import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import java.util.Date;
 import java.util.UUID;
@@ -8,10 +10,7 @@ import java.util.UUID;
 //@Getter
 //@Setter
 @MappedSuperclass
-public abstract class BaseEntity {
-
-    @Id
-    private String guid;
+public abstract class BaseEntity extends PanacheEntity {
 
     private String createdBy;
 
@@ -26,7 +25,6 @@ public abstract class BaseEntity {
 
     @PrePersist
     public void prePersist() {
-        guid = UUID.randomUUID().toString();
         createdOn = new Date();
         updatedOn = new Date();
     }
@@ -34,14 +32,6 @@ public abstract class BaseEntity {
     @PreUpdate
     public void preUpdate() {
         updatedOn = new Date();
-    }
-
-    public String getGuid() {
-        return guid;
-    }
-
-    public void setGuid(String guid) {
-        this.guid = guid;
     }
 
     public String getCreatedBy() {

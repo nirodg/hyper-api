@@ -14,6 +14,8 @@ public @interface RestService {
 
   String dto() default "";
 
+  String repositoryPackage() default "repository";
+
   Scope scope() default Scope.APPLICATION;
 
   HttpMethod[] disabledFor() default {};

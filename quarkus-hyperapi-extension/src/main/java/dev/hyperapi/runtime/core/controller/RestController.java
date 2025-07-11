@@ -15,9 +15,10 @@ import java.util.List;
 public abstract class RestController<
         DTO extends BaseDTO,
         MAPPER extends AbstractMapper<DTO, ENTITY>,
+        Id,
         ENTITY extends BaseEntity> {
 
-    protected abstract BaseEntityService<ENTITY, DTO, MAPPER> getService();
+    protected abstract BaseEntityService<ENTITY, DTO, Id, MAPPER> getService();
 
     @GET
     public List<DTO> getAll(@QueryParam("offset") @DefaultValue("0") int offset, @QueryParam("limit") @DefaultValue("20") int limit) {
@@ -26,7 +27,7 @@ public abstract class RestController<
 
     @GET
     @Path("/{id}")
-    public Response getById(@PathParam("id") String id) {
+    public Response getById(@PathParam("id") Id id) {
         DTO dto = getService().findById(id);
         if (dto == null) {
             throw new NotFoundException("Entity not found");
@@ -41,22 +42,22 @@ public abstract class RestController<
 
     @PUT
     @Path("/{id}")
-    public Response update(@PathParam("id") String id, DTO dto) {
-        dto.setGuid(id);
+    public Response update(@PathParam("id") Id id, DTO dto) {
+        dto.setId(id);
         return Response.ok(getService().update(dto)).build();
     }
 
     @PATCH
     @Path("/{id}")
     @Consumes("application/merge-patch+json")
-    public Response patch(@PathParam("id") String id, JsonObject patchJson) {
+    public Response patch(@PathParam("id") Id id, JsonObject patchJson) {
         DTO patchedDto = getService().patch(id, patchJson);
         return Response.ok(patchedDto).build();
     }
 
     @DELETE
     @Path("/{id}")
-    public Response delete(@PathParam("id") String id) {
+    public Response delete(@PathParam("id") Id id) {
         getService().delete(id);
         return Response.noContent().build();
     }
