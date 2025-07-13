@@ -1,7 +1,7 @@
 # 🚀 HyperAPI  
 **A Quarkus extension for instant, zero-boilerplate, secured CRUD APIs**
 
-HyperAPI scans your JPA entities, finds those annotated with `@ExposeAPI`, and – during **compilation (soon features at runtime)** – wires complete REST endpoints, DTO mapping, Services, Events and role-based access control. No controllers, no services, no MapStruct classes to write by hand.
+HyperAPI scans your JPA entities, finds those annotated with `@HyperResource`, and – during **compilation (soon features at runtime)** – wires complete REST endpoints, DTO mapping, Services, Events and role-based access control. No controllers, no services, no MapStruct classes to write by hand.
 
 ## ⚠️ Important Notice
 
@@ -31,7 +31,7 @@ HyperAPI scans your JPA entities, finds those annotated with `@ExposeAPI`, and �
 | **Generic CRUD endpoints**                       | Exposes `GET / POST / PUT / DELETE` at `/api/{Entity}` or your custom path.                               |
  | **Generate DTO**                                 | Automatically fetches the JPA's fields and generated a DTO version of if, it's constumizable.             |           |
 | **Generate at compile DTO mapping**              | Automatically generated a Mapper and on top of it MapStruct generates the implementation                  |
-| **Annotation-driven security** (not implemented) | `@ExposeAPI.security(requireAuth, rolesAllowed)` → returns `401/403` via a name-bound JAX-RS filter.      |
+| **Annotation-driven security** (not implemented) | `@HyperResource.security(requireAuth, rolesAllowed)` → returns `401/403` via a name-bound JAX-RS filter.      |
 | **Standard JSON error payload**                  | Uniform `ApiError` body with timestamp, HTTP status, message, path, and `WWW-Authenticate` header on 401. |
 | **Quarkus-native extension packaging**           | Published as `quarkus-hyperapi-extension` (runtime) + `quarkus-hyperapi-deployment` (build-time).         |
  | **Event mechanism**                              | Offers customizable Event Pattern for events on create/update/delete                                      |                                     |                                                                        |
@@ -44,7 +44,7 @@ HyperAPI scans your JPA entities, finds those annotated with `@ExposeAPI`, and �
 ```xml
 <dependency>
   <groupId>dev.hyperapi</groupId>
-  <artifactId>quarkus-hyperapi-extension</artifactId>
+  <artifactId>quarkus-hyperapi</artifactId>
   <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -59,35 +59,26 @@ quarkus.log.console.json=false   # pretty console logs in dev
 ```java
 package com.example.domain;
 
-import dev.hyperapi.runtime.annotations.RestService;
-import static dev.hyperapi.runtime.annotations.RestService.*;
+///  imports
 
-import jakarta.persistence.*;
-import java.math.BigDecimal;
-import java.time.Instant;
-
+@Getter
+@Setter
 @Entity
-@ExposeAPI(
-  path = "/products",                       // customise base path
+@HyperResource(
+  path = "/api/products",                       // customise base path
   mapping = @Mapping(ignore = {"version"}), // hide optimistic-lock column
   security = @Security(
       requireAuth  = true,                  // caller must be authenticated
       rolesAllowed = {"PRODUCT_WRITE"}      // and hold one of these roles
   )
 )
-public class Product {
-
-  @Id @GeneratedValue
-  Long id;
-
+public class Product extends HyperEntity{
+  
   String name;
   BigDecimal price;
 
   @Version
   Integer version;
-
-  Instant createdAt = Instant.now();
-  // getters/setters …
 }
 ```
 ### 4. Run dev-mode
@@ -111,11 +102,11 @@ curl -X POST http://localhost:8080/api/products \
 curl -H "Authorization: Bearer <jwt>" \
      http://localhost:8080/api/products
 ```
-## 🧩 @RestService — Annotation Reference
-> For full reference please see the [@RestService](https://github.com/nirodg/hyper-api/blob/dev/quarkus-hyperapi-processor/src/main/java/dev/hyperapi/runtime/core/processor/annotations/RestService.java)
+## 🧩 @HyperResource — Annotation Reference
+> For full reference please see the [@HyperResource](https://github.com/nirodg/hyper-api/blob/dev/quarkus-hyperapi/src/main/java/dev/hyperapi/runtime/core/processor/annotations/HyperResource.java)
 
 ```java
-@RestService(
+@HyperResource(
     /** 1️⃣ Base API path (default: entity name) */
     path = "/orders",
     
