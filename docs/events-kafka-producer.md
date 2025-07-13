@@ -19,10 +19,10 @@ You have an entity called `Order` and you want to automatically emit a Kafka mes
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(name = "orders")
-@RestService(
+@HyperResource(
     path = "/orders",
-    mapping = @RestService.Mapping(ignore = {"internalId"}),
-    events = @RestService.Events(onCreate = true, emitter = KafkaEventsForOrder.class)
+    mapping = @Mapping(ignore = {"internalId"}),
+    events = @Events(onCreate = true, emitter = KafkaEventsForOrder.class)
 )
 public class Order extends BaseEntity {
     // fields...
@@ -82,7 +82,7 @@ public class OrderService extends BaseEntityService<Order, OrderDTO, OrderMapper
 
 ## 🚀 How it Works
 
-* The `@RestService(events = @Events(...))` annotation instructs the code generator to emit a typed event.
+* The `@HyperResource(events = @Events(...))` annotation instructs the code generator to emit a typed event.
 * The `KafkaEventsForOrder` class extends `AbstractTypedEmitter` and defines how to send messages to Kafka.
 * The generated `OrderService` includes a call to `emitter.emit(...)` upon successful entity creation.
 

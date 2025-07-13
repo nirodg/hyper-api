@@ -1,13 +1,10 @@
 package dev.hyperapi.runtime.core.mapper;
 
-import dev.hyperapi.runtime.core.dto.BaseDTO;
-import dev.hyperapi.runtime.core.model.BaseEntity;
-import org.mapstruct.Mapping;
+import dev.hyperapi.runtime.core.model.HyperEntity;
 
 import java.util.List;
-import java.util.Map;
 
-public abstract class AbstractMapper<DTO, ENTITY extends BaseEntity> {
+public abstract class AbstractMapper<DTO, ENTITY extends HyperEntity> {
 
   /**
    * Converts an entity to a DTO.

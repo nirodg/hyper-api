@@ -9,7 +9,7 @@ public abstract class AbstractTypedEmitter<T> implements EntityEmitter<T> {
 
     @Override
     public void emit(EntityEvent.Type type, T entity) {
-        if (entityType.isInstance(entity)) {
+        if (entityType.isInstance(entity) || entity == null) {
             emitTyped(type, entity);
         }
     }

@@ -1,11 +1,11 @@
 # API Path Configuration 🛣️
 
-## `@RestService.path` Attribute
+## `@path` Attribute
 
 ### Default Behavior
 ```java
 @Entity
-@RestService // No path specified
+@HyperResource // No path specified
 public class Product {
     //...
 }
@@ -17,7 +17,7 @@ public class Product {
 ### Custom Path
 ```java
 @Entity
-@RestService(path = "/inventory/items")
+@HyperResource(path = "/inventory/items")
 public class Product {
     //...
 }

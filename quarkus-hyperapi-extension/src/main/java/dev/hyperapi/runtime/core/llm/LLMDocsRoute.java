@@ -1,6 +1,10 @@
 package dev.hyperapi.runtime.core.llm;
 
-import dev.hyperapi.runtime.core.processor.annotations.RestService;
+import dev.hyperapi.runtime.core.processor.annotations.Cache;
+import dev.hyperapi.runtime.core.processor.annotations.Events;
+import dev.hyperapi.runtime.core.processor.annotations.HyperResource;
+import dev.hyperapi.runtime.core.processor.annotations.Pageable;
+import dev.hyperapi.runtime.core.processor.annotations.Security;
 import dev.hyperapi.runtime.core.registry.EntityRegistry;
 import io.smallrye.config.SmallRyeConfig;
 import io.smallrye.mutiny.Uni;
@@ -51,16 +55,16 @@ public class LLMDocsRoute {
                             .append(entity.getSimpleName()).append("\n")
                             .append("Base path: /api/").append(entity.getSimpleName().toLowerCase()).append("\n")
                             .append("CRUD Operations:\n");
-                    RestService metadata = entity.getAnnotation(RestService.class);
+                    HyperResource metadata = entity.getAnnotation(HyperResource.class);
                     String path = metadata != null && !metadata.path().isEmpty()
                             ? metadata.path()
                             : "/api/" + entity.getSimpleName().toLowerCase();
 
 
-                    RestService.Pageable paging = metadata != null ? metadata.pageable() : null;
-                    RestService.Security security = metadata != null ? metadata.security() : null;
-                    RestService.Events events = metadata != null ? metadata.events() : null;
-                    RestService.Cache cache = metadata != null ? metadata.cache() : null;
+                    Pageable paging = metadata != null ? metadata.pageable() : null;
+                    Security security = metadata != null ? metadata.security() : null;
+                    Events events = metadata != null ? metadata.events() : null;
+                    Cache cache = metadata != null ? metadata.cache() : null;
 
                     entitySpec.append("Entity: ").append(entity.getSimpleName()).append("\n")
                             .append("Base path: ").append(path).append("\n")

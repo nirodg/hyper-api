@@ -1,47 +1,30 @@
-package dev.hyperapi.runtime.core.model;
+package dev.hyperapi.runtime.core.dto;
 
-import jakarta.persistence.*;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.Date;
-import java.util.UUID;
 
-// FIXME: Not working with Lombok
-//@Getter
-//@Setter
-@MappedSuperclass
-public abstract class BaseEntity {
+public abstract class HyperDto implements Serializable {
 
-    @Id
-    private String guid;
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    private Long id;
 
     private String createdBy;
 
     private String updatedBy;
 
-    @Temporal(TemporalType.TIMESTAMP)
     private Date createdOn;
 
-    @Column(name = "UPDATED_ON")
-    @Temporal(TemporalType.TIMESTAMP)
     private Date updatedOn;
 
-    @PrePersist
-    public void prePersist() {
-        guid = UUID.randomUUID().toString();
-        createdOn = new Date();
-        updatedOn = new Date();
+    public Long getId() {
+        return id;
     }
 
-    @PreUpdate
-    public void preUpdate() {
-        updatedOn = new Date();
-    }
-
-    public String getGuid() {
-        return guid;
-    }
-
-    public void setGuid(String guid) {
-        this.guid = guid;
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getCreatedBy() {

@@ -13,7 +13,7 @@ graph LR
 1. Entity Setup
 ```java
 @Entity
-@RestService(events = @RestService.Events(onCreate=true))
+@HyperResource(events = @Events(onCreate=true))
 public class Order extends BaseEntity {
     // fields...
 }

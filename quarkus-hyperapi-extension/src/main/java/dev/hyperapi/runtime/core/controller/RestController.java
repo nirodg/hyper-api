@@ -1,8 +1,8 @@
 package dev.hyperapi.runtime.core.controller;
 
-import dev.hyperapi.runtime.core.dto.BaseDTO;
+import dev.hyperapi.runtime.core.dto.HyperDto;
 import dev.hyperapi.runtime.core.mapper.AbstractMapper;
-import dev.hyperapi.runtime.core.model.BaseEntity;
+import dev.hyperapi.runtime.core.model.HyperEntity;
 import dev.hyperapi.runtime.core.service.BaseEntityService;
 import jakarta.json.JsonObject;
 import jakarta.ws.rs.*;
@@ -13,9 +13,9 @@ import java.util.List;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public abstract class RestController<
-        DTO extends BaseDTO,
+        DTO extends HyperDto,
         MAPPER extends AbstractMapper<DTO, ENTITY>,
-        ENTITY extends BaseEntity> {
+        ENTITY extends HyperEntity> {
 
     protected abstract BaseEntityService<ENTITY, DTO, MAPPER> getService();
 
@@ -26,7 +26,7 @@ public abstract class RestController<
 
     @GET
     @Path("/{id}")
-    public Response getById(@PathParam("id") String id) {
+    public Response getById(@PathParam("id") Long id) {
         DTO dto = getService().findById(id);
         if (dto == null) {
             throw new NotFoundException("Entity not found");
@@ -41,22 +41,22 @@ public abstract class RestController<
 
     @PUT
     @Path("/{id}")
-    public Response update(@PathParam("id") String id, DTO dto) {
-        dto.setGuid(id);
+    public Response update(@PathParam("id") Long id, DTO dto) {
+        dto.setId(id);
         return Response.ok(getService().update(dto)).build();
     }
 
     @PATCH
     @Path("/{id}")
     @Consumes("application/merge-patch+json")
-    public Response patch(@PathParam("id") String id, JsonObject patchJson) {
+    public Response patch(@PathParam("id") Long id, JsonObject patchJson) {
         DTO patchedDto = getService().patch(id, patchJson);
         return Response.ok(patchedDto).build();
     }
 
     @DELETE
     @Path("/{id}")
-    public Response delete(@PathParam("id") String id) {
+    public Response delete(@PathParam("id") Long id) {
         getService().delete(id);
         return Response.noContent().build();
     }
