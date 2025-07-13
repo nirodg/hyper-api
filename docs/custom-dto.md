@@ -1,11 +1,11 @@
 # Generate DTO and Configuration ✨
 
-## `@RestService.dto` Attribute
+## `@dto` Attribute
 
 ## Key Behaviors
 ### 1. Automatic Suffixing
 ```java
-@RestService() // Becomes "ProductDTO"
+@HyperResource() // Becomes "ProductDTO"
 public class Product{
     //...
 }
@@ -13,7 +13,7 @@ public class Product{
 
 ### 2. Custom naming
 ```java
-@RestService( dto = "SingleProduct" ) // Becomes "SingleProductDTO"
+@HyperResource( dto = "SingleProduct" ) // Becomes "SingleProductDTO"
 public class Product{
     //...
 }
@@ -21,7 +21,7 @@ public class Product{
 
 ### Default Naming Convention
 ```java
-@RestService // No DTO specified
+@HyperResource // No DTO specified
 public class User {
     //...
 }
@@ -30,7 +30,7 @@ public class User {
 
 ### Custon DTO Name
 ```java
-@RestService(dto = "AccountResponse")
+@HyperResource(dto = "AccountResponse")
 public class User {
     //...
 }
@@ -40,7 +40,7 @@ public class User {
 ### Field Inclusion Rule (for JSON)
 ```java
 @Entity
-@RestService(dto = "MyProduct")
+@HyperResource(dto = "MyProduct")
 public class Product {
     String name;          // Included
     BigDecimal price;     // Included
@@ -52,7 +52,7 @@ public class Product {
 
 ### Generated DTO example
 ```java
-// For @RestService( dto = "MyProduct" )
+// For @HyperResource( dto = "MyProduct" )
 @JsonInclude(Include.NON_NULL)
 public class MyProductDTO extends BaseDTO {
     @JsonProperty("name")

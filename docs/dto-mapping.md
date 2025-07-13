@@ -1,10 +1,10 @@
 # DTO Field Mapping Configuration 🗺️
 
-## `@RestService.Mapping` Attribute
+## `@Mapping` Attribute
 
 ### Define fields to be ignored
 ```java
-@RestService(
+@HyperResource(
     mapping = @Mapping(
         ignore = {"internalId"},
         ignoreNested = {"orders.checkout"} // Deep path exclusion

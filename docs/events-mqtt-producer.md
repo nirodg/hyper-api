@@ -12,7 +12,7 @@ graph LR
 1. Base Configuration (Unchanged)
 ```java
 @Entity
-@RestService(events = @RestService.Events(onCreate=true, onUpdate=true, onDelete=true))
+@HyperResource(events = @Events(onCreate=true, onUpdate=true, onDelete=true))
 public class Order extends BaseEntity {
     // Entity fields...
 }

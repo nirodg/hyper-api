@@ -2,7 +2,7 @@
 
 ## How It Works
 
-- **@RestService** auto-generates events 📨
+- **@HyperResource** auto-generates events 📨
 - **@Observes** required to catch events 🕵️‍♂️
 - Built on CDI Event Bus ⚡
 
@@ -13,18 +13,64 @@
 ```java
 
 @Entity
-@RestService(
+@HyperResource(
         path = "/orders",
-        events = @RestService.Events(
+        events = @Events(
                 onCreate = true,  // Auto CREATE events
                 onUpdate = true,  // Auto UPDATE events
                 onDelete = true   // Auto DELETE events
+                onPatch = true,   // Auto PATCH events
+                emitter = OrderEvents.class // Custom emitter
         )
 )
 public class Order extends BaseEntity {
     // entity fields...
 }
 ```
+
+The OrderEvents must be defined by the user to handle the events emitted by the Order entity.
+
+```java
+@ApplicationScoped
+public class OrderEvents extends AbstractTypedEmitter<Order> {
+
+    protected OrderEvents() {
+        super(Order.class);
+    }
+
+    @Override
+    protected void emitTyped(EntityEvent.Type type, Order entity) {
+        switch (type){
+            case CREATE -> postCreate(entity);
+            case UPDATE -> postUpdate(entity);
+            case DELETE -> postDelete(entity);
+            case PATCH -> postPatch(entity);
+        }
+    }
+
+    void postCreate(Order Order) {
+        System.out.println("Post-create processing for Order: " + Order.getOrderNumber());
+        // Add any additional logic needed after the event is emitted
+    }
+
+    void postUpdate(Order Order) {
+        System.out.println("Post-update processing for Order: " + Order.getOrderNumber());
+        // Add any additional logic needed after the event is emitted
+    }
+
+    void postDelete(Order Order) {
+        System.out.println("Post-delete processing for deleted Order");
+        // Add any additional logic needed after the event is emitted
+    }
+
+    void postPatch(Order Order) {
+        System.out.println("Post-patch processing for Order: " + Order.getOrderNumber());
+        // Add any additional logic needed after the event is emitted
+    }
+}
+
+```
+
 
 ## 2. Observer Setup (User Code)
 
