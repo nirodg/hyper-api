@@ -9,7 +9,7 @@
     <artifactId>quarkus-hyperapi-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>HyperAPI Quarkus Extension Parent</name>
+    <name>HyperAPI Extension</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -32,9 +32,8 @@
     </dependencyManagement>
 
     <modules>
-        <module>quarkus-hyperapi-extension-deployment</module>
-        <module>quarkus-hyperapi-extension</module>
-        <module>quarkus-hyperapi-processor</module>
+        <module>quarkus-hyperapi-deployment</module>
+        <module>quarkus-hyperapi</module>
     </modules>
 </project>
 
