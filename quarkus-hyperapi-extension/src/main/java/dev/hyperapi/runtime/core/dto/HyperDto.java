@@ -1,37 +1,30 @@
-package dev.hyperapi.runtime.core.model;
+package dev.hyperapi.runtime.core.dto;
 
-import io.quarkus.hibernate.orm.panache.PanacheEntity;
-import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
-import jakarta.persistence.*;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.Date;
-import java.util.UUID;
 
-// FIXME: Not working with Lombok
-//@Getter
-//@Setter
-@MappedSuperclass
-public abstract class BaseEntity extends PanacheEntity {
+public abstract class HyperDto implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    private Long id;
 
     private String createdBy;
 
     private String updatedBy;
 
-    @Temporal(TemporalType.TIMESTAMP)
     private Date createdOn;
 
-    @Column(name = "UPDATED_ON")
-    @Temporal(TemporalType.TIMESTAMP)
     private Date updatedOn;
 
-    @PrePersist
-    public void prePersist() {
-        createdOn = new Date();
-        updatedOn = new Date();
+    public Long getId() {
+        return id;
     }
 
-    @PreUpdate
-    public void preUpdate() {
-        updatedOn = new Date();
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getCreatedBy() {

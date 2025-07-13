@@ -1,6 +1,6 @@
 package dev.hyperapi.runtime.core.mapper;
 
-import dev.hyperapi.runtime.core.processor.annotations.RestService;
+import dev.hyperapi.runtime.core.processor.annotations.HyperResource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.Entity;
 import java.lang.reflect.Field;
@@ -70,10 +70,10 @@ public class DtoMapper {
 
   /* --------  helper  -------- */
   private static Set<String> ignored(Class<?> cls) {
-    if (!cls.isAnnotationPresent(RestService.class)) {
+    if (!cls.isAnnotationPresent(HyperResource.class)) {
       return Set.of();
     }
-    return Set.of(cls.getAnnotation(RestService.class).mapping().ignore());
+    return Set.of(cls.getAnnotation(HyperResource.class).mapping().ignore());
   }
 
   // Unwrap HibernateProxy or any CGLIB-derived subclass (proxy)

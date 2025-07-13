@@ -10,7 +10,8 @@ public class EntityEvent<BaseEntity> {
   public enum Type {
     CREATE,
     UPDATE,
-    DELETE
+    DELETE,
+    PATCH
   }
 
   private final Type type;

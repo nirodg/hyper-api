@@ -1,6 +1,6 @@
 package dev.hyperapi.runtime.core.registry;
 
-import dev.hyperapi.runtime.core.processor.annotations.RestService;
+import dev.hyperapi.runtime.core.processor.annotations.HyperResource;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.Entity;
@@ -34,7 +34,7 @@ public class EntityRegistry {
 
     exposed =
         reflections.getTypesAnnotatedWith(Entity.class).stream()
-            .filter(c -> c.isAnnotationPresent(RestService.class))
+            .filter(c -> c.isAnnotationPresent(HyperResource.class))
             .collect(Collectors.toUnmodifiableSet());
   }
 

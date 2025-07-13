@@ -4,7 +4,7 @@
  */
 package dev.hyperapi.runtime.core.common;
 
-import dev.hyperapi.runtime.core.processor.annotations.RestService;
+import dev.hyperapi.runtime.core.processor.annotations.HyperResource;
 import dev.hyperapi.runtime.core.registry.EntityRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -22,13 +22,13 @@ public class EntityConfigProvider {
 
   @Inject private EntityRegistry registry;
 
-  private final Map<Class<?>, RestService> config = new ConcurrentHashMap<>();
+  private final Map<Class<?>, HyperResource> config = new ConcurrentHashMap<>();
 
-  public RestService configFor(Class<?> cls) {
+  public HyperResource configFor(Class<?> cls) {
     return config.computeIfAbsent(
         cls,
         c -> {
-          RestService ann = c.getAnnotation(RestService.class);
+          HyperResource ann = c.getAnnotation(HyperResource.class);
           if (ann == null) {
             throw new IllegalStateException("Entity not @ExposeAPI: " + c);
           }

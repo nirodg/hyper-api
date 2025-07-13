@@ -1,27 +1,63 @@
 package dev.hyperapi.runtime.core.processor;
 
 import com.google.auto.service.AutoService;
-import com.squareup.javapoet.*;
-import dev.hyperapi.runtime.core.processor.annotations.RestService;
+import com.squareup.javapoet.AnnotationSpec;
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.FieldSpec;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.ParameterSpec;
+import com.squareup.javapoet.ParameterizedTypeName;
+import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.TypeSpec;
+import dev.hyperapi.runtime.core.processor.annotations.Events;
+import dev.hyperapi.runtime.core.processor.annotations.HyperResource;
+import dev.hyperapi.runtime.core.processor.enums.HttpMethod;
+import dev.hyperapi.runtime.core.processor.enums.Scope;
 import jakarta.annotation.Generated;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.QueryParam;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
-import javax.annotation.processing.*;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Filer;
+import javax.annotation.processing.Messager;
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.*;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 
 @AutoService(Processor.class)
-@SupportedAnnotationTypes("dev.hyperapi.runtime.core.processor.annotations.RestService")
+@SupportedAnnotationTypes("dev.hyperapi.runtime.core.processor.annotations.HyperResource")
 @SupportedSourceVersion(SourceVersion.RELEASE_21)
 public class RestServiceProcessor extends AbstractProcessor {
 
+  public static final String DEV_HYPERAPI_RUNTIME_CORE_ENTITY = "dev.hyperapi.runtime.core.model.HyperEntity";
+  public static final String DEV_HYPERAPI_RUNTIME_CORE_ENTITY_DTO = "dev.hyperapi.runtime.core.dto.HyperDto";
   private Filer filer;
   private Messager messager;
   private Elements elementUtils;
@@ -36,9 +72,9 @@ public class RestServiceProcessor extends AbstractProcessor {
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    for (Element annotatedElement : roundEnv.getElementsAnnotatedWith(RestService.class)) {
+    for (Element annotatedElement : roundEnv.getElementsAnnotatedWith(HyperResource.class)) {
       if (!(annotatedElement instanceof TypeElement entityType)) {
-        error(annotatedElement, "@RestService must annotate a class.");
+        error(annotatedElement, "@HyperResource must annotate a class.");
         continue;
       }
 
@@ -46,15 +82,16 @@ public class RestServiceProcessor extends AbstractProcessor {
       if (!isExtendingBaseEntity(entityType)) {
         error(
             entityType,
-            "Class %s must extend dev.hyperapi.runtime.core.entity.BaseEntity to use @RestService",
+            "Class %s must extend %s to use @HyperResource",
+            DEV_HYPERAPI_RUNTIME_CORE_ENTITY,
             entityType.getSimpleName().toString());
         return false;
       }
 
-      RestService restService = entityType.getAnnotation(RestService.class);
-      String dtoName = sanitizeDtoName(entityType.getSimpleName().toString(), restService.dto());
-      List<String> ignoredFields = Arrays.asList(restService.mapping().ignore());
-      List<String> ignoredNestedFields = Arrays.asList(restService.mapping().ignoreNested());
+      HyperResource hyperResource = entityType.getAnnotation(HyperResource.class);
+      String dtoName = sanitizeDtoName(entityType.getSimpleName().toString(), hyperResource.dto());
+      List<String> ignoredFields = Arrays.asList(hyperResource.mapping().ignore());
+      List<String> ignoredNestedFields = Arrays.asList(hyperResource.mapping().ignoreNested());
 
       boolean shouldGenerate = !dtoName.isBlank() || !ignoredFields.isEmpty();
       if (!shouldGenerate) {
@@ -65,8 +102,8 @@ public class RestServiceProcessor extends AbstractProcessor {
       try {
         generateDTO(entityType, dtoName, ignoredFields);
         generateMapper(entityType, dtoName, ignoredFields, ignoredNestedFields);
-        generateService(entityType, dtoName, restService);
-        generateController(entityType, dtoName, restService);
+        generateService(entityType, dtoName, hyperResource);
+        generateController(entityType, dtoName, hyperResource);
       } catch (IOException | ClassNotFoundException e) {
         error(entityType, "Code generation failed: " + e.getMessage());
       }
@@ -77,7 +114,7 @@ public class RestServiceProcessor extends AbstractProcessor {
   private boolean isExtendingBaseEntity(TypeElement typeElement) {
     // 1. Get BaseEntity type
     TypeElement baseEntityType =
-        elementUtils.getTypeElement("dev.hyperapi.runtime.core.model.BaseEntity");
+        elementUtils.getTypeElement(DEV_HYPERAPI_RUNTIME_CORE_ENTITY);
 
     if (baseEntityType == null) {
       error(typeElement, "Could not resolve BaseEntity class in classpath");
@@ -155,7 +192,7 @@ public class RestServiceProcessor extends AbstractProcessor {
       throws IOException, ClassNotFoundException {
     String basePackage = elementUtils.getPackageOf(entity).getQualifiedName().toString();
     ClassName dtoClass = ClassName.get(basePackage + ".dto", dtoName);
-    ClassName baseDtoClass = ClassName.get("dev.hyperapi.runtime.core.dto", "BaseDTO");
+    ClassName baseDtoClass = ClassName.bestGuess(DEV_HYPERAPI_RUNTIME_CORE_ENTITY_DTO);
 
     // Initialize builder with common configurations
     TypeSpec.Builder dtoBuilder =
@@ -208,7 +245,7 @@ public class RestServiceProcessor extends AbstractProcessor {
     if (allFields.isEmpty()) {
       String wanrMessage =
           "%s : The class doesn't contain any fields to generate DTO for. "
-              + "Ensure it has fields annotated with @RestService or not ignored by mapping.";
+              + "Ensure it has fields annotated with @HyperResource or not ignored by mapping.";
       warn(entity, wanrMessage, entity.getQualifiedName().toString());
     }
 
@@ -259,7 +296,7 @@ public class RestServiceProcessor extends AbstractProcessor {
     List<String> fieldNames = new ArrayList<>();
 
     // Load BaseDTO class using element utils
-    TypeElement baseDtoType = elementUtils.getTypeElement("dev.hyperapi.runtime.core.dto.BaseDTO");
+    TypeElement baseDtoType = elementUtils.getTypeElement(DEV_HYPERAPI_RUNTIME_CORE_ENTITY_DTO);
     if (baseDtoType != null) {
       for (Element enclosed : elementUtils.getAllMembers(baseDtoType)) {
         if (enclosed.getKind() == ElementKind.FIELD) {
@@ -396,7 +433,7 @@ public class RestServiceProcessor extends AbstractProcessor {
         .addAnnotation(ClassName.get("jakarta.transaction", "Transactional"))
         .addModifiers(Modifier.PUBLIC)
         .returns(TypeName.VOID)
-        .addParameter(TypeName.OBJECT, "id")
+        .addParameter(ParameterSpec.builder(ClassName.get(Long.class), "id").build())
         .addStatement("super.delete(id)")
         .addStatement(
             strCustomEmitter + "($T.Type.DELETE, null)", entityEventClass) // if you don’t re-fetch
@@ -412,7 +449,7 @@ public class RestServiceProcessor extends AbstractProcessor {
         .addAnnotation(ClassName.get("jakarta.transaction", "Transactional"))
         .addModifiers(Modifier.PUBLIC)
         .returns(dtoClass)
-        .addParameter(ParameterSpec.builder(ClassName.get(Object.class), "id").build())
+        .addParameter(ParameterSpec.builder(ClassName.get(Long.class), "id").build())
         .addParameter(
             ParameterSpec.builder(ClassName.get("jakarta.json", "JsonObject"), "patchJson").build())
         .addStatement("$T result = super.patch(id, patchJson)", dtoClass)
@@ -422,7 +459,7 @@ public class RestServiceProcessor extends AbstractProcessor {
         .build();
   }
 
-  private void generateService(TypeElement entity, String dtoName, RestService restService)
+  private void generateService(TypeElement entity, String dtoName, HyperResource hyperResource)
       throws IOException, ClassNotFoundException {
     String entityName = entity.getSimpleName().toString();
     String basePackage = elementUtils.getPackageOf(entity).getQualifiedName().toString();
@@ -432,7 +469,7 @@ public class RestServiceProcessor extends AbstractProcessor {
     ClassName entityClass = ClassName.get(basePackage, entityName);
     ClassName mapperClass = ClassName.get(basePackage + ".mapper", entityName + "Mapper");
 
-    RestService.Events events = restService.events();
+    Events events = hyperResource.events();
     boolean fireOnCreate = events.onCreate();
     boolean fireOnUpdate = events.onUpdate();
     boolean fireOnDelete = events.onDelete();
@@ -443,7 +480,6 @@ public class RestServiceProcessor extends AbstractProcessor {
             ClassName.get("dev.hyperapi.runtime.core.service", "BaseEntityService"),
             entityClass,
             dtoClass,
-            getIdType(entity),
             mapperClass);
 
     MethodSpec.Builder constructor =
@@ -458,9 +494,9 @@ public class RestServiceProcessor extends AbstractProcessor {
             .addAnnotation(ClassName.get("jakarta.enterprise.context", "ApplicationScoped"))
             .superclass(superType);
 
-
     // Define injection for the repository
-    MethodSpec repoGetter = generateInjectRepository(entity, basePackage, entityName, serviceClass, entityClass, restService);
+    MethodSpec repoGetter = generateInjectRepository(entity, basePackage, entityName, serviceClass,
+        entityClass, hyperResource);
     serviceClass.addMethod(repoGetter);
 
     Optional<TypeMirror> emitterMirror = getEmitterTypeMirror(entity);
@@ -517,29 +553,30 @@ public class RestServiceProcessor extends AbstractProcessor {
         .writeTo(filer);
   }
 
-  private MethodSpec generateInjectRepository(TypeElement entity, String basePackage, String entityName, TypeSpec.Builder serviceClass, ClassName entityClass, RestService restService) {
-    // Resolve ID type from entity
-    TypeName idType = getIdType(entity);
+  private MethodSpec generateInjectRepository(TypeElement entity, String basePackage,
+      String entityName, TypeSpec.Builder serviceClass, ClassName entityClass,
+      HyperResource hyperResource) {
 
     // Add injected repository field
-    ClassName repositoryClass = ClassName.get(basePackage + "." + restService.repositoryPackage(), entityName + "Repository");
+    ClassName repositoryClass = ClassName.get(basePackage + "." + hyperResource.repositoryPackage(),
+        entityName + "Repository");
     serviceClass.addField(FieldSpec.builder(repositoryClass, "repository", Modifier.PRIVATE)
-            .addAnnotation(ClassName.get("jakarta.inject", "Inject"))
-            .build());
+        .addAnnotation(ClassName.get("jakarta.inject", "Inject"))
+        .build());
 
     // Add repository override method
     ParameterizedTypeName repoType = ParameterizedTypeName.get(
-            ClassName.get("io.quarkus.hibernate.orm.panache", "PanacheRepositoryBase"),
-            entityClass,
-            idType
+        ClassName.get("io.quarkus.hibernate.orm.panache", "PanacheRepositoryBase"),
+        entityClass,
+        ClassName.get("java.lang", "Long")
     );
 
     MethodSpec repoGetter = MethodSpec.methodBuilder("getRepository")
-            .addAnnotation(Override.class)
-            .addModifiers(Modifier.PROTECTED)
-            .returns(repoType)
-            .addStatement("return repository")
-            .build();
+        .addAnnotation(Override.class)
+        .addModifiers(Modifier.PROTECTED)
+        .returns(repoType)
+        .addStatement("return repository")
+        .build();
     return repoGetter;
   }
 
@@ -548,11 +585,15 @@ public class RestServiceProcessor extends AbstractProcessor {
       if (!annotation
           .getAnnotationType()
           .toString()
-          .equals("dev.hyperapi.runtime.core.processor.annotations.RestService")) continue;
+          .equals("dev.hyperapi.runtime.core.processor.annotations.HyperResource")) {
+        continue;
+      }
 
       for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
           annotation.getElementValues().entrySet()) {
-        if (!entry.getKey().getSimpleName().contentEquals("events")) continue;
+        if (!entry.getKey().getSimpleName().contentEquals("events")) {
+          continue;
+        }
 
         AnnotationMirror events = (AnnotationMirror) entry.getValue().getValue();
 
@@ -567,11 +608,11 @@ public class RestServiceProcessor extends AbstractProcessor {
     return Optional.empty();
   }
 
-  private void generateController(TypeElement entity, String dtoName, RestService restService)
+  private void generateController(TypeElement entity, String dtoName, HyperResource hyperResource)
       throws IOException {
     String entityName = entity.getSimpleName().toString();
     String basePackage = elementUtils.getPackageOf(entity).getQualifiedName().toString();
-    String controllerName = entityName + "RestService";
+    String controllerName = entityName + "HyperResource";
 
     ClassName dtoClass = ClassName.get(basePackage + ".dto", dtoName);
     ClassName mapperClass = ClassName.get(basePackage + ".mapper", entityName + "Mapper");
@@ -583,12 +624,11 @@ public class RestServiceProcessor extends AbstractProcessor {
             ClassName.get("dev.hyperapi.runtime.core.controller", "RestController"),
             dtoClass,
             mapperClass,
-                getIdType(entity),
             entityClass);
 
     String path =
-        restService.path().isBlank() ? "/api/" + entityName.toLowerCase() : restService.path();
-    RestService.Scope scope = restService.scope();
+        hyperResource.path().isBlank() ? "/api/" + entityName.toLowerCase() : hyperResource.path();
+    Scope scope = hyperResource.scope();
 
     TypeSpec.Builder ctrl =
         TypeSpec.classBuilder(controllerName)
@@ -605,7 +645,7 @@ public class RestServiceProcessor extends AbstractProcessor {
                 FieldSpec.builder(serviceClass, "service", Modifier.PRIVATE)
                     .addAnnotation(ClassName.get("jakarta.inject", "Inject"))
                     .build())
-            .addMethod(
+            .addMethod( // Overriding getService method
                 MethodSpec.methodBuilder("getService")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
@@ -614,23 +654,22 @@ public class RestServiceProcessor extends AbstractProcessor {
                             ClassName.get("dev.hyperapi.runtime.core.service", "BaseEntityService"),
                             entityClass,
                             dtoClass,
-                                getIdType(entity),
                             mapperClass))
                     .addStatement("return service")
                     .build());
 
     // Define paging for GetAll method
-    Optional<RestService.HttpMethod> isGetMethodDisabled =
-        Arrays.stream(restService.disabledFor())
+    Optional<HttpMethod> isGetMethodDisabled =
+        Arrays.stream(hyperResource.disabledFor())
             .filter(
                 r -> {
-                  return r == RestService.HttpMethod.GET;
+                  return r == HttpMethod.GET;
                 })
             .findFirst();
 
-    if (restService.pageable() != null && isGetMethodDisabled.isEmpty()) {
-      int defaultLimit = restService.pageable().limit();
-      int maxLimit = restService.pageable().maxLimit();
+    if (hyperResource.pageable() != null && isGetMethodDisabled.isEmpty()) {
+      int defaultLimit = hyperResource.pageable().limit();
+      int maxLimit = hyperResource.pageable().maxLimit();
 
       MethodSpec getAll =
           MethodSpec.methodBuilder("getAll")
@@ -666,16 +705,18 @@ public class RestServiceProcessor extends AbstractProcessor {
     }
 
     // Disabled user-defined endpoints
-    if (restService.disabledFor().length > 0) {
+    if (hyperResource.disabledFor().length > 0) {
 
       Set<String> disabledMethods =
-          Arrays.stream(restService.disabledFor())
-              .map(RestService.HttpMethod::name)
+          Arrays.stream(hyperResource.disabledFor())
+              .map(HttpMethod::name)
               .collect(Collectors.toSet());
 
       disabledMethods.forEach(
           method -> {
-            if (method.equals("DELETE")) ctrl.addMethod(generateDisabledDeleteMethod(dtoClass));
+            if (method.equals("DELETE")) {
+              ctrl.addMethod(generateDisabledDeleteMethod(dtoClass));
+            }
             if (method.equals("GET")) {
               ctrl.addMethod(generateDisabledGetByIdMethod(dtoClass));
               ctrl.addMethod(generateDisabledGetAllMethod(dtoClass));
@@ -730,7 +771,7 @@ public class RestServiceProcessor extends AbstractProcessor {
         .addAnnotation(Override.class)
         .addModifiers(Modifier.PUBLIC)
         .returns(ClassName.get("jakarta.ws.rs.core", "Response"))
-        .addParameter(ParameterSpec.builder(Object.class, "id").build())
+        .addParameter(ParameterSpec.builder(Long.class, "id").build())
         .addStatement(
             "throw new $T($S)",
             ClassName.get("jakarta.ws.rs", "NotFoundException"),
@@ -807,7 +848,9 @@ public class RestServiceProcessor extends AbstractProcessor {
     return cleaned + "DTO";
   }
 
-  /** Generates @Generated annotation with detailed build metadata */
+  /**
+   * Generates @Generated annotation with detailed build metadata
+   */
   private AnnotationSpec generatedAnnotation() {
     return AnnotationSpec.builder(Generated.class)
         .addMember("value", "$S", "dev.hyperapi.runtime.core.processor.RestServiceProcessor")
@@ -834,13 +877,15 @@ public class RestServiceProcessor extends AbstractProcessor {
 
   private static final String JPA_ID_ANNOTATION = "jakarta.persistence.Id"; // or javax...
 
+  @Deprecated
   private TypeName getIdType(TypeElement entity) {
     Optional<? extends Element> idFieldOpt = entity.getEnclosedElements().stream()
-            .filter(e -> e.getKind() == ElementKind.FIELD)
-            .filter(e -> e.getAnnotationMirrors().stream()
-                    .map(am -> am.getAnnotationType().toString())
-                    .anyMatch(name -> name.equals("jakarta.persistence.Id") || name.equals("javax.persistence.Id")))
-            .findFirst();
+        .filter(e -> e.getKind() == ElementKind.FIELD)
+        .filter(e -> e.getAnnotationMirrors().stream()
+            .map(am -> am.getAnnotationType().toString())
+            .anyMatch(name -> name.equals("jakarta.persistence.Id") || name.equals(
+                "javax.persistence.Id")))
+        .findFirst();
 
     if (idFieldOpt.isEmpty()) {
       warn(entity, "No @Id field found. Defaulting to Object as ID type.");

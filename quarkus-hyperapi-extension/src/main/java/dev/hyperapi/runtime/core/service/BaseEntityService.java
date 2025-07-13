@@ -1,9 +1,9 @@
 package dev.hyperapi.runtime.core.service;
 
-import dev.hyperapi.runtime.core.dto.BaseDTO;
+import dev.hyperapi.runtime.core.dto.HyperDto;
 import dev.hyperapi.runtime.core.events.EntityEvent;
 import dev.hyperapi.runtime.core.mapper.AbstractMapper;
-import dev.hyperapi.runtime.core.model.BaseEntity;
+import dev.hyperapi.runtime.core.model.HyperEntity;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.inject.Inject;
 import jakarta.json.Json;
@@ -11,9 +11,6 @@ import jakarta.json.JsonMergePatch;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonValue;
 import jakarta.json.bind.Jsonb;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
 import java.util.List;
@@ -26,7 +23,7 @@ import java.util.List;
  * @param <MAPPER> Mapper type
  */
 public abstract class BaseEntityService<
-    ENTITY extends BaseEntity, DTO extends BaseDTO, Id, MAPPER extends AbstractMapper<DTO, ENTITY>> {
+    ENTITY extends HyperEntity, DTO extends HyperDto, MAPPER extends AbstractMapper<DTO, ENTITY>> {
 
   private final Class<DTO> dtoClass;
 
@@ -40,7 +37,7 @@ public abstract class BaseEntityService<
 
   @Inject jakarta.enterprise.event.Event<EntityEvent<ENTITY>> event;
 
-  protected abstract PanacheRepositoryBase<ENTITY, Id> getRepository();
+  protected abstract PanacheRepositoryBase<ENTITY, Long> getRepository();
 
   public List<DTO> findAll(int offset, int limit) {
     return mapper.toList(
@@ -50,7 +47,7 @@ public abstract class BaseEntityService<
     );
   }
 
-  public DTO findById(Id id) {
+  public DTO findById(Long id) {
     ENTITY entity = getRepository().findById(id);
     return entity != null ? mapper.toDto(entity) : null;
   }
@@ -70,32 +67,30 @@ public abstract class BaseEntityService<
   }
 
   @Transactional
-  public void delete(Id id) {
+  public void delete(Long id) {
     getRepository().deleteById(id);
   }
 
   @Transactional
-  public DTO patch(Id id, JsonObject patchJson) {
+  public DTO patch(Long id, JsonObject patchJson) {
     DTO existingDto = findById(id);
     if (existingDto == null) {
       throw new NotFoundException("Entity not found");
     }
 
-    // Convert DTO to JSON
-    JsonObject existingJson =
-        Json.createObjectBuilder()
-            .add(
-                "id",
-                ((BaseDTO) existingDto).getId().toString()) // Extend this to include all fields as needed
-            .build();
+    // 🔥 Serialize full DTO into JsonObject
+    JsonObject existingJson = jsonb.fromJson(jsonb.toJson(existingDto), JsonObject.class);
 
-    // Apply patch
+    // Merge patch
     JsonMergePatch mergePatch = Json.createMergePatch(patchJson);
     JsonValue patchedValue = mergePatch.apply(existingJson);
-    JsonObject patchedJson = patchedValue.asJsonObject();
 
-    // Deserialize into new DTO (or manually hydrate)
-    DTO patchedDto = jsonToDto(patchedJson);
+    JsonObject mergedJson = patchedValue.asJsonObject();
+
+    DTO patchedDto = jsonToDto(mergedJson);
+    // strip Immutable Fields After Patch
+    patchedDto.setCreatedOn(existingDto.getCreatedOn());
+    patchedDto.setCreatedBy(existingDto.getCreatedBy());
     patchedDto.setId(id); // ensure ID is preserved
 
     return update(patchedDto);
