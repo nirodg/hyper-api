@@ -96,19 +96,19 @@ import javax.tools.Diagnostic;
  * @since 0.1.0
  */
 @AutoService(Processor.class)
-@SupportedAnnotationTypes("annotations.processor.com.eorghe.runtime.core.HyperResource")
+@SupportedAnnotationTypes("com.eorghe.hyperapi.processor.annotations.HyperResource")
 @SupportedSourceVersion(SourceVersion.RELEASE_21)
 public class HyperApiProcessor extends AbstractProcessor {
 
   /**
    * Fully qualified name of the base entity class required for `@HyperResource` annotations.
    */
-  public static final String DEV_HYPERAPI_RUNTIME_CORE_ENTITY = "model.com.eorghe.runtime.core.HyperEntity";
+  public static final String DEV_HYPERAPI_RUNTIME_CORE_ENTITY = "com.eorghe.hyperapi.model.HyperEntity";
 
   /**
    * Fully qualified name of the base DTO class used for generated DTOs.
    */
-  public static final String DEV_HYPERAPI_RUNTIME_CORE_ENTITY_DTO = "dto.com.eorghe.runtime.core.HyperDto";
+  public static final String DEV_HYPERAPI_RUNTIME_CORE_ENTITY_DTO = "com.eorghe.hyperapi.dto.HyperDto";
 
   private Filer filer;
   private Messager messager;
@@ -126,6 +126,8 @@ public class HyperApiProcessor extends AbstractProcessor {
     messager = env.getMessager();
     elementUtils = env.getElementUtils();
   }
+
+
 
   /**
    * Processes the `@HyperResource` annotations and generates the required code.

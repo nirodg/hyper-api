@@ -24,6 +24,10 @@
 package com.eorghe.hyperapi.events;
 
 
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+
 /**
  * EntityEvent represents an event related to a specific entity in the system.
  *
@@ -36,8 +40,11 @@ package com.eorghe.hyperapi.events;
  * @version 0.1.0
  * @since 0.1.0
  */
-public record EntityEvent<BaseEntity>(com.eorghe.hyperapi.events.EntityEvent.Type type,
-                                      BaseEntity entity) {
+
+@Getter
+@Setter
+@ToString
+public class EntityEvent<BaseEntity> {
 
   /**
    * Type defines the possible types of entity-related events.
@@ -51,10 +58,28 @@ public record EntityEvent<BaseEntity>(com.eorghe.hyperapi.events.EntityEvent.Typ
    * </ul>
    */
   public enum Type {
+    /**
+     * The entity has been created.
+     */
     CREATE,
+    /**
+     * The entity has been updated.
+     */
     UPDATE,
+    /**
+     * The entity has been deleted.
+     */
     DELETE,
+    /**
+     * The entity has been patched.
+     */
     PATCH
   }
 
+  private final Type type;
+  private final BaseEntity entity;
+  public EntityEvent(Type type, BaseEntity entity) {
+    this.type = type;
+    this.entity = entity;
+  }
 }
