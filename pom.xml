@@ -5,11 +5,48 @@
                              http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>dev.hyperapi</groupId>
-    <artifactId>quarkus-hyperapi-parent</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <groupId>com.eorghe</groupId>
+    <artifactId>hyperapi-parent</artifactId>
+    <version>0.1.1</version>
     <packaging>pom</packaging>
     <name>HyperAPI Extension</name>
+    <url>https://github.com/nirodg/hyper-api</url>
+    <description>A Quarkus extension for instant, zero-boilerplate, secured CRUD APIs</description>
+    <inceptionYear>2025</inceptionYear>
+    <!-- MIT License -->
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+        </license>
+    </licenses>
+
+    <!-- SCM (GitHub) -->
+    <scm>
+        <url>https://github.com/nirodg/hyper-api</url>
+        <connection>scm:git:git://github.com/nirodg/hyper-api.git</connection>
+        <developerConnection>scm:git:ssh://github.com/nirodg/hyper-api.git</developerConnection>
+    </scm>
+
+    <!-- Developer Info -->
+    <developers>
+        <developer>
+            <name>Brage Dorin-Gheorghe</name>
+            <email>dorin.brage@gmail.com</email>
+            <organization>Independent</organization>
+        </developer>
+    </developers>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -32,9 +69,69 @@
     </dependencyManagement>
 
     <modules>
-        <module>quarkus-hyperapi-deployment</module>
-        <module>quarkus-hyperapi</module>
+        <module>hyperapi-deployment</module>
+        <module>hyperapi</module>
     </modules>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.8.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                </configuration>
+            </plugin>
+            <!-- Attach Sources -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.2.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>verify</phase>
+                        <goals><goal>jar</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Attach Javadoc -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <phase>verify</phase>
+                        <goals><goal>jar</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+          <!-- Sign JARs -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>3.1.0</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals><goal>sign</goal></goals>
+              </execution>
+            </executions>
+            <configuration>
+              <gpgArguments>
+                <arg>--pinentry-mode</arg>
+                <arg>loopback</arg>
+              </gpgArguments>
+            </configuration>
+          </plugin>
+        </plugins>
+    </build>
 </project>
 
     

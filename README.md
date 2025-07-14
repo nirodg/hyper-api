@@ -43,9 +43,9 @@ HyperAPI scans your JPA entities, finds those annotated with `@HyperResource`, a
 
 ```xml
 <dependency>
-  <groupId>dev.hyperapi</groupId>
+  <groupId>com.eorghe</groupId>
   <artifactId>quarkus-hyperapi</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.1.0</version>
 </dependency>
 ```
 
