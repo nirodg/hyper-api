@@ -27,7 +27,6 @@ package com.eorghe.hyperapi.events;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-
 /**
  * EntityEvent represents an event related to a specific entity in the system.
  *
@@ -40,7 +39,6 @@ import lombok.ToString;
  * @version 0.1.0
  * @since 0.1.0
  */
-
 @Getter
 @Setter
 @ToString
@@ -82,4 +80,5 @@ public class EntityEvent<BaseEntity> {
     this.type = type;
     this.entity = entity;
   }
+
 }

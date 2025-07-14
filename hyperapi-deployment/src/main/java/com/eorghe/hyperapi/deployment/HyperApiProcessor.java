@@ -28,7 +28,6 @@ import com.eorghe.hyperapi.registry.EntityRegistry;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
-import io.quarkus.logging.Log;
 
 /**
  * HyperApiProcessor is a build step processor for the HyperAPI extension.

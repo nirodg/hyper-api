@@ -100,7 +100,6 @@
       <artifactId>reflections</artifactId>
       <version>${reflections.version}</version>
     </dependency>
-
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-junit5-component</artifactId>
@@ -128,7 +127,6 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
-    </dependency>
   </dependencies>
 
   <build>
@@ -171,27 +169,9 @@
               <artifactId>auto-service</artifactId>
               <version>1.1.1</version>
             </path>
-            <!--                        <path>-->
-            <!--                            <groupId>com.eorghe</groupId>-->
-            <!--                            <artifactId>hyperapi</artifactId>-->
-            <!--                            <version>0.1.0-SNAPSHOT</version>-->
-            <!--                        </path>-->
           </annotationProcessorPaths>
         </configuration>
       </plugin>
-<!--      <plugin>-->
-<!--        <groupId>io.smallrye</groupId>-->
-<!--        <artifactId>jandex-maven-plugin</artifactId>-->
-<!--        <version>3.1.2</version>-->
-<!--        <executions>-->
-<!--          <execution>-->
-<!--            <id>make-index</id>-->
-<!--            <goals>-->
-<!--              <goal>jandex</goal>-->
-<!--            </goals>-->
-<!--          </execution>-->
-<!--        </executions>-->
-<!--      </plugin>-->
       <plugin>
         <groupId>org.sonatype.central</groupId>
         <artifactId>central-publishing-maven-plugin</artifactId>
