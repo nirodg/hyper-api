@@ -1,11 +1,22 @@
 [![Maven Central](https://img.shields.io/maven-central/v/com.eorghe/hyperapi?color=blue&label=Maven%20Central)](https://search.maven.org/artifact/com.eorghe/hyperapi)
 [![Jenkins Build](https://img.shields.io/jenkins/build?jobUrl=https://jenkins.eorghe.com/job/Hyper-API)](https://jenkins.eorghe.com/job/Hyper-API)
 
-# 🚀 HyperAPI  
-**A Quarkus extension for instant, zero-boilerplate, secured CRUD APIs**
+![HyperAPI Logo](./assets/logo_small.png)
+ 
+**HyperAPI is a Quarkus extension for instant, zero-boilerplate, secured CRUD APIs.**
 
-HyperAPI scans your JPA entities, finds those annotated with `@HyperResource`, and – during **compilation (soon features at runtime)** – wires complete REST endpoints, DTO mapping, Services, Events and role-based access control. No controllers, no services, no MapStruct classes to write by hand.
+It scans your JPA entities annotated with @HyperResource and – at compile-time – automatically generates full-featured:
 
+- REST endpoints
+- DTOs and mappers
+- Service layers
+- RFC 7807-compliant error handling
+- Role-based access control (soon!)
+- Event driven architecture
+- Supports Panache
+
+## 🚀 Why HyperAPI?
+No controllers, services, or MapStruct classes to write by hand. Everything is type-safe, customizable, and ready to use.
 ## ⚠️ Important Notice
 
 > **Development Preview**  
@@ -176,16 +187,16 @@ Explore implementation guides for key HyperAPI features:
 
 
 ## 🛣 Roadmap
-- ✅ Generate mappers
-- ✅ Field-ignore mapping
-- ✅ Generate Services
-- ✅ Generate Rest Endpoints (CRUD)
-- 🔜 Annotation-first security
-- ✅ Pagination & sorting
-- ✅ PATCH (partial updates)
-- ✅ CDI events on create/update/delete
-- 🔜 In-memory caching
-- 🔜 Auto-generated OpenAPI docs
+- ✅ **Mapper generation** (DTO ↔ Entity)
+- ✅ **Field ignore support** via annotation
+- ✅ **Service layer generation**
+- ✅ **CRUD REST endpoint generation**
+- ✅ **Pagination & sorting** support
+- ✅ **PATCH** support using `application/merge-patch+json`
+- ✅ **CDI events** on create / update / delete
+- 🔜 **Annotation-first security** (e.g. `@PermitAll`, `@RolesAllowed`)
+- 🔜 **In-memory caching** support
+- 🔜 **Auto-generated OpenAPI documentation**
 
 Contributions and feedback welcome — let’s make HyperAPI even more awesome!
 
