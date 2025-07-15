@@ -1,4 +1,5 @@
 [![Maven Central](https://img.shields.io/maven-central/v/com.eorghe/hyperapi?color=blue&label=Maven%20Central)](https://search.maven.org/artifact/com.eorghe/hyperapi)
+[![Jenkins Build](https://img.shields.io/jenkins/build?jobUrl=https://jenkins.eorghe.com/job/Hyper-API)](https://jenkins.eorghe.com/job/Hyper-API)
 
 # 🚀 HyperAPI  
 **A Quarkus extension for instant, zero-boilerplate, secured CRUD APIs**
