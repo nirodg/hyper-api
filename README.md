@@ -190,4 +190,4 @@ Explore implementation guides for key HyperAPI features:
 Contributions and feedback welcome — let’s make HyperAPI even more awesome!
 
 ## 📄 License
-HyperAPI is licensed under the Apache 2.0 License. See the LICENSE file for details.
+HyperAPI is licensed under the MIT license. See the LICENSE file for details.
