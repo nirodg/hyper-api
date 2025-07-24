@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven 3.9.10'   // name from Jenkins tool config
-        jdk 'jdk21'           // name from Jenkins tool config
+        maven 'Mvn 3.9.10'   // name from Jenkins tool config
+#        jdk 'jdk21'           // name from Jenkins tool config
     }
 
     environment {
@@ -14,6 +14,13 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+            }
+        }
+
+        stage('Show JDK Version') {
+            steps {
+                sh 'java -version'
+                sh 'echo JAVA_HOME is $JAVA_HOME'
             }
         }
 
