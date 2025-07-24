@@ -3,7 +3,6 @@ pipeline {
 
     tools {
         maven 'Mvn 3.9.10'   // name from Jenkins tool config
-#        jdk 'jdk21'           // name from Jenkins tool config
     }
 
     environment {
