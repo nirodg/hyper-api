@@ -23,12 +23,8 @@
  */
 package com.eorghe.hyperapi.processor;
 
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.CodeBlock;
-import com.squareup.javapoet.FieldSpec;
-import com.squareup.javapoet.MethodSpec;
-import com.squareup.javapoet.TypeName;
-import com.squareup.javapoet.TypeSpec;
+import com.squareup.javapoet.*;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -135,33 +131,115 @@ public class PropertyGenerator {
   }
 
   /**
-   * Adds getter and setter methods for the specified field.
+   * Adds getter and setter methods for the specified field with converted DTO types.
    *
-   * <p>If the field is a collection type, additional methods for adding and clearing items
-   * are generated.
+   * @param classBuilder the builder for the main class
+   * @param fieldName the name of the field
+   * @param fieldTypeName the DTO field type (already converted)
+   * @param modifiers the modifiers of the original field
+   */
+  public static void addPropertyMethods(TypeSpec.Builder classBuilder, String fieldName, TypeName fieldTypeName, Set<Modifier> modifiers) {
+    // Generate getter
+    MethodSpec getter = generateGetter(fieldName, fieldTypeName, modifiers);
+    classBuilder.addMethod(getter);
+
+    // Generate setter if not final
+    if (!modifiers.contains(Modifier.FINAL)) {
+      MethodSpec setter = generateSetter(fieldName, fieldTypeName, modifiers);
+      classBuilder.addMethod(setter);
+    }
+
+    // Handle special cases for collections
+    if (isCollectionTypeName(fieldTypeName)) {
+      addCollectionMethodsWithTypeName(classBuilder, fieldName, fieldTypeName);
+    }
+  }
+
+  /**
+   * Adds getter and setter methods for the specified field (legacy method).
    *
    * @param classBuilder the builder for the main class
    * @param field        the field to generate methods for
+   * @deprecated Use {@link #addPropertyMethods(TypeSpec.Builder, String, TypeName, Set)} instead
    */
+  @Deprecated
   public static void addPropertyMethods(TypeSpec.Builder classBuilder, Element field) {
     String fieldName = field.getSimpleName().toString();
     TypeMirror fieldType = field.asType();
     TypeName fieldTypeName = TypeName.get(fieldType);
 
-    // Generate getter
-    MethodSpec getter = generateGetter(fieldName, fieldTypeName, field.getModifiers());
-    classBuilder.addMethod(getter);
+    addPropertyMethods(classBuilder, fieldName, fieldTypeName, field.getModifiers());
+  }
 
-    // Generate setter if not final
-    if (!field.getModifiers().contains(Modifier.FINAL)) {
-      MethodSpec setter = generateSetter(fieldName, fieldTypeName, field.getModifiers());
-      classBuilder.addMethod(setter);
+
+  /**
+   * Checks if a TypeName represents a collection type.
+   *
+   * @param typeName the TypeName to check
+   * @return true if the type is a collection, false otherwise
+   */
+  private static boolean isCollectionTypeName(TypeName typeName) {
+    String typeString = typeName.toString();
+    return typeString.startsWith("java.util.List") ||
+            typeString.startsWith("java.util.Set") ||
+            typeString.startsWith("java.util.Collection") ||
+            typeString.startsWith("java.util.Map");
+  }
+
+  /**
+   * Adds collection manipulation methods using TypeName instead of TypeMirror.
+   *
+   * @param classBuilder the builder for the main class
+   * @param fieldName the name of the collection field
+   * @param fieldTypeName the DTO field type
+   */
+  private static void addCollectionMethodsWithTypeName(TypeSpec.Builder classBuilder, String fieldName, TypeName fieldTypeName) {
+    String typeString = fieldTypeName.toString();
+
+    if (typeString.startsWith("java.util.Map")) {
+      // Extract key and value types from ParameterizedTypeName
+      if (fieldTypeName instanceof ParameterizedTypeName) {
+        ParameterizedTypeName paramType = (ParameterizedTypeName) fieldTypeName;
+        List<TypeName> typeArgs = paramType.typeArguments;
+
+        if (typeArgs.size() >= 2) {
+          TypeName keyType = typeArgs.get(0);
+          TypeName valueType = typeArgs.get(1);
+
+          MethodSpec putter = MethodSpec.methodBuilder("put" + capitalize(fieldName) + "Entry")
+                  .addModifiers(Modifier.PUBLIC)
+                  .addParameter(keyType, "key")
+                  .addParameter(valueType, "value")
+                  .addStatement("this.$L.put(key, value)", fieldName)
+                  .build();
+          classBuilder.addMethod(putter);
+        }
+      }
+    } else {
+      // Handle List, Set, Collection
+      if (fieldTypeName instanceof ParameterizedTypeName) {
+        ParameterizedTypeName paramType = (ParameterizedTypeName) fieldTypeName;
+        List<TypeName> typeArgs = paramType.typeArguments;
+
+        if (!typeArgs.isEmpty()) {
+          TypeName elementType = typeArgs.get(0);
+
+          MethodSpec adder = MethodSpec.methodBuilder("add" + capitalize(fieldName) + "Item")
+                  .addModifiers(Modifier.PUBLIC)
+                  .addParameter(elementType, "item")
+                  .addStatement("this.$L.add(item)", fieldName)
+                  .build();
+          classBuilder.addMethod(adder);
+        }
+      }
     }
 
-    // Handle special cases
-    if (isCollectionType(fieldType)) {
-      addCollectionMethods(classBuilder, field);
-    }
+    // Common collection clear method
+    MethodSpec clearer = MethodSpec.methodBuilder("clear" + capitalize(fieldName))
+            .addModifiers(Modifier.PUBLIC)
+            .addStatement("this.$L.clear()", fieldName)
+            .build();
+    classBuilder.addMethod(clearer);
   }
 
   /**
