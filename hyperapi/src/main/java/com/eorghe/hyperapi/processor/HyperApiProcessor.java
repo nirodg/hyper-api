@@ -70,6 +70,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
@@ -305,16 +306,18 @@ public class HyperApiProcessor extends AbstractProcessor {
           && !ignore.contains(field.getSimpleName().toString())) {
         String fieldName = field.getSimpleName().toString();
         TypeMirror fieldType = field.asType();
-        TypeName fieldTypeName = TypeName.get(fieldType);
+
+        // Convert entity types to DTO types
+        TypeName dtoFieldTypeName = convertEntityTypeToDto(fieldType, basePackage);
 
         // Add the field with Jackson annotations
         FieldSpec.Builder fieldBuilder =
-            FieldSpec.builder(fieldTypeName, fieldName, Modifier.PRIVATE)
-                .addAnnotation(
-                    AnnotationSpec.builder(
-                            ClassName.get("com.fasterxml.jackson.annotation", "JsonProperty"))
-                        .addMember("value", "$S", fieldName)
-                        .build());
+                FieldSpec.builder(dtoFieldTypeName, fieldName, Modifier.PRIVATE)
+                        .addAnnotation(
+                                AnnotationSpec.builder(
+                                                ClassName.get("com.fasterxml.jackson.annotation", "JsonProperty"))
+                                        .addMember("value", "$S", fieldName)
+                                        .build());
 
         // Handle initialization for collections
         if (PropertyGenerator.isCollectionType(fieldType)) {
@@ -324,11 +327,10 @@ public class HyperApiProcessor extends AbstractProcessor {
         dtoBuilder.addField(fieldBuilder.build());
         allFields.add(field);
 
-        // Generate all appropriate methods
-        PropertyGenerator.addPropertyMethods(dtoBuilder, field);
+        // Generate all appropriate methods with converted DTO types
+        PropertyGenerator.addPropertyMethods(dtoBuilder, fieldName, dtoFieldTypeName, field.getModifiers());
       }
     }
-
     if (allFields.isEmpty()) {
       String wanrMessage =
           "%s : The class doesn't contain any fields to generate DTO for. "
@@ -1126,6 +1128,76 @@ public class HyperApiProcessor extends AbstractProcessor {
                 System.getProperty("os.arch"),
                 "HyperAPI Quarkus Extension"))
         .build();
+  }
+
+  /**
+   * Converts entity field types to their corresponding DTO types.
+   *
+   * @param fieldType the original field type from the entity
+   * @param basePackage the base package of the current entity
+   * @return the converted TypeName (DTO type if applicable, original type otherwise)
+   */
+  private TypeName convertEntityTypeToDto(TypeMirror fieldType, String basePackage) {
+    // Handle collection types
+    if (PropertyGenerator.isCollectionType(fieldType)) {
+      return handleCollectionTypeConversion(fieldType, basePackage);
+    }
+
+    // Handle single custom entity types
+    if (PropertyGenerator.isCustomObject(fieldType)) {
+      String typeName = fieldType.toString();
+
+      // Check if it's an entity in the same package that might have a DTO
+      if (typeName.startsWith(basePackage) && !typeName.contains(".dto.")) {
+        String entityName = typeName.substring(typeName.lastIndexOf('.') + 1);
+
+        // Check if this entity has @HyperResource annotation
+        TypeElement entityElement = elementUtils.getTypeElement(typeName);
+        if (entityElement != null && entityElement.getAnnotation(HyperResource.class) != null) {
+          HyperResource hyperResource = entityElement.getAnnotation(HyperResource.class);
+          String dtoName = sanitizeDtoName(entityName, hyperResource.dto());
+          return ClassName.get(basePackage + ".dto", dtoName);
+        }
+      }
+    }
+
+    return TypeName.get(fieldType);
+  }
+
+  /**
+   * Handles conversion for collection types (List, Set, Map).
+   *
+   * @param collectionType the collection type to convert
+   * @param basePackage the base package of the current entity
+   * @return the converted collection TypeName with DTO element types
+   */
+  private TypeName handleCollectionTypeConversion(TypeMirror collectionType, String basePackage) {
+    if (!(collectionType instanceof DeclaredType)) {
+      return TypeName.get(collectionType);
+    }
+
+    DeclaredType declaredType = (DeclaredType) collectionType;
+    List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
+
+    if (typeArgs.isEmpty()) {
+      return TypeName.get(collectionType);
+    }
+
+    String rawTypeName = collectionType.toString();
+
+    if (rawTypeName.startsWith("java.util.List")) {
+      TypeName elementType = convertEntityTypeToDto(typeArgs.get(0), basePackage);
+      return ParameterizedTypeName.get(ClassName.get("java.util", "List"), elementType);
+    } else if (rawTypeName.startsWith("java.util.Set")) {
+      TypeName elementType = convertEntityTypeToDto(typeArgs.get(0), basePackage);
+      return ParameterizedTypeName.get(ClassName.get("java.util", "Set"), elementType);
+    } else if (rawTypeName.startsWith("java.util.Map")) {
+      TypeName keyType = convertEntityTypeToDto(typeArgs.get(0), basePackage);
+      TypeName valueType = typeArgs.size() > 1 ? convertEntityTypeToDto(typeArgs.get(1), basePackage) : TypeName.get(Object.class);
+      return ParameterizedTypeName.get(ClassName.get("java.util", "Map"), keyType, valueType);
+    }
+
+    return TypeName.get(collectionType);
   }
 
 }
