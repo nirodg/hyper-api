@@ -116,7 +116,7 @@ public class HyperApiProcessor extends AbstractProcessor {
     private Messager messager;
     private Elements elementUtils;
 
-    private HashSet<String> enumsList = new HashSet<>() ;
+    private HashSet<String> enumsList = new HashSet<>();
 
     /**
      * Initializes the annotation processor with the processing environment.
@@ -168,7 +168,7 @@ public class HyperApiProcessor extends AbstractProcessor {
             }
 
             try {
-                generateDTO(entityType, dtoName, ignoredFields);
+                generateDTO(entityType, dtoName, ignoredFields, hyperResource);
                 generateMapper(entityType, dtoName, ignoredFields, ignoredNestedFields);
                 generateService(entityType, dtoName, hyperResource);
                 generateController(entityType, dtoName, hyperResource);
@@ -272,10 +272,11 @@ public class HyperApiProcessor extends AbstractProcessor {
     }
 
 
-    private String generateEnumDTO(Element enumElement) throws IOException {
+    private String generateEnumDTO(Element enumElement, HyperResource hyperResource) throws IOException {
         String enumName = enumElement.getSimpleName().toString();
         String dtoName = enumName + "DTO";
         String basePackage = elementUtils.getPackageOf(enumElement).getQualifiedName().toString();
+        String absoluteEnumClass = basePackage + "." + dtoName;
 
         TypeSpec.Builder enumDtoBuilder = TypeSpec.enumBuilder(dtoName)
                 .addModifiers(Modifier.PUBLIC)
@@ -294,12 +295,12 @@ public class HyperApiProcessor extends AbstractProcessor {
         }
 
         TypeSpec enumDto = enumDtoBuilder.build();
-        String absoluteEnumClass = basePackage + "." + dtoName;
 
-        if(enumsList.contains(absoluteEnumClass)){
+
+        if (enumsList.contains(absoluteEnumClass)) {
             // Avoids creating the file twice.
             return absoluteEnumClass;
-        }else{
+        } else {
             enumsList.add(absoluteEnumClass);
         }
 
@@ -314,13 +315,14 @@ public class HyperApiProcessor extends AbstractProcessor {
     /**
      * Generates a DTO class for the given entity.
      *
-     * @param entity  the entity TypeElement
-     * @param dtoName the name of the DTO to generate
-     * @param ignore  the list of fields to ignore in the DTO
+     * @param entity        the entity TypeElement
+     * @param dtoName       the name of the DTO to generate
+     * @param ignore        the list of fields to ignore in the DTO
+     * @param hyperResource
      * @throws IOException            if there is an error writing the generated file
      * @throws ClassNotFoundException if the base DTO class cannot be found
      */
-    private void generateDTO(TypeElement entity, String dtoName, List<String> ignore)
+    private void generateDTO(TypeElement entity, String dtoName, List<String> ignore, HyperResource hyperResource)
             throws IOException, ClassNotFoundException {
         String basePackage = elementUtils.getPackageOf(entity).getQualifiedName().toString();
         ClassName dtoClass = ClassName.get(basePackage + ".dto", dtoName);
@@ -349,68 +351,70 @@ public class HyperApiProcessor extends AbstractProcessor {
             if (field.getKind() == ElementKind.FIELD
                     && !ignore.contains(field.getSimpleName().toString())) {
 
-                // Find ENUM fields.
                 TypeMirror fieldType = field.asType();
                 String fieldName = field.getSimpleName().toString();
 
-                boolean isEnum = false;
-                if (fieldType.getKind() == TypeKind.DECLARED) {
-                    Element element = ((DeclaredType) fieldType).asElement();
-                    if (element.getKind() == ElementKind.ENUM) {
-                        isEnum = true;
-                    }
-                }
-
-
-                if (!isEnum) {
-                    // Convert entity types to DTO types
-                    TypeName dtoFieldTypeName = convertEntityTypeToDto(fieldType, basePackage);
-
-                    // Add the field with Jackson annotations
-                    FieldSpec.Builder fieldBuilder =
-                            FieldSpec.builder(dtoFieldTypeName, fieldName, Modifier.PRIVATE)
-                                    .addAnnotation(
-                                            AnnotationSpec.builder(
-                                                            ClassName.get("com.fasterxml.jackson.annotation", "JsonProperty"))
-                                                    .addMember("value", "$S", fieldName)
-                                                    .build());
-
-                    // Handle initialization for collections
-                    if (PropertyGenerator.isCollectionType(fieldType)) {
-                        fieldBuilder.initializer("new $T<>()", getCollectionImplType(fieldType));
-                    }
-
-                    dtoBuilder.addField(fieldBuilder.build());
-                    allFields.add(field);
-
-                    // Generate all appropriate methods with converted DTO types
-                    PropertyGenerator.addPropertyMethods(dtoBuilder, fieldName, dtoFieldTypeName, field.getModifiers());
-                } else {
-                    // Generate Enum DTO
+                if (!Arrays.asList(hyperResource.ignoreFields()).contains(fieldName)) {
+                    boolean isEnum = false;
                     if (fieldType.getKind() == TypeKind.DECLARED) {
                         Element element = ((DeclaredType) fieldType).asElement();
                         if (element.getKind() == ElementKind.ENUM) {
-                            // Define the field with the proper DTO
-//                            String generatedEnumDtoName =
-                            String enumName = generateEnumDTO(element);
-                            ClassName enumClass = ClassName.bestGuess(enumName);
-
-                            // Add the field with Jackson annotations
-                            FieldSpec.Builder fieldBuilder =
-                                    FieldSpec.builder(enumClass, fieldName, Modifier.PRIVATE)
-                                            .addAnnotation(
-                                                    AnnotationSpec.builder(
-                                                                    ClassName.get("com.fasterxml.jackson.annotation", "JsonProperty"))
-                                                            .addMember("value", "$S", fieldName)
-                                                            .build());
-
-                            dtoBuilder.addField(fieldBuilder.build());
-                            allFields.add(field);
+                            isEnum = true;
                         }
-
                     }
 
 
+                    if (!isEnum) {
+                        // Convert entity types to DTO types
+                        TypeName dtoFieldTypeName = convertEntityTypeToDto(fieldType, basePackage);
+
+                        // Add the field with Jackson annotations
+                        FieldSpec.Builder fieldBuilder =
+                                FieldSpec.builder(dtoFieldTypeName, fieldName, Modifier.PRIVATE)
+                                        .addAnnotation(
+                                                AnnotationSpec.builder(
+                                                                ClassName.get("com.fasterxml.jackson.annotation", "JsonProperty"))
+                                                        .addMember("value", "$S", fieldName)
+                                                        .build());
+
+                        // Handle initialization for collections
+                        if (PropertyGenerator.isCollectionType(fieldType)) {
+                            fieldBuilder.initializer("new $T<>()", getCollectionImplType(fieldType));
+                        }
+
+                        dtoBuilder.addField(fieldBuilder.build());
+                        allFields.add(field);
+
+                        // Generate all appropriate methods with converted DTO types
+                        PropertyGenerator.addPropertyMethods(dtoBuilder, fieldName, dtoFieldTypeName, field.getModifiers());
+                    } else {
+                        // Generate Enum DTO
+                        if (fieldType.getKind() == TypeKind.DECLARED) {
+                            Element element = ((DeclaredType) fieldType).asElement();
+                            if (element.getKind() == ElementKind.ENUM) {
+                                String enumName = generateEnumDTO(element, hyperResource);
+                                ClassName enumClass = ClassName.bestGuess(enumName);
+
+                                // Add the field with Jackson annotations
+                                FieldSpec.Builder fieldBuilder =
+                                        FieldSpec.builder(enumClass, fieldName, Modifier.PRIVATE)
+                                                .addAnnotation(
+                                                        AnnotationSpec.builder(
+                                                                        ClassName.get("com.fasterxml.jackson.annotation", "JsonProperty"))
+                                                                .addMember("value", "$S", fieldName)
+                                                                .build());
+
+                                dtoBuilder.addField(fieldBuilder.build());
+                                allFields.add(field);
+
+                                // Generate all appropriate methods with converted DTO types
+                                PropertyGenerator.addPropertyMethods(dtoBuilder, fieldName, enumClass, field.getModifiers());
+                            }
+
+                        }
+
+
+                    }
                 }
 
             }
@@ -420,7 +424,7 @@ public class HyperApiProcessor extends AbstractProcessor {
             String warnMessage =
                     "%s : The class doesn't contain any fields to generate DTO for. "
                             + "Ensure it has fields annotated with @HyperResource or not ignored by mapping.";
-            warn(entity, warnMessage, entity.getQualifiedName().toString());
+            error(entity, warnMessage, entity.getQualifiedName().toString());
         }
 
 

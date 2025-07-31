@@ -85,6 +85,8 @@ public @interface HyperResource {
    */
   HttpMethod[] disabledFor() default {};
 
+  String[] ignoreFields() default {};
+
   /**
    * Specifies the mapping configuration for the resource.
    *
