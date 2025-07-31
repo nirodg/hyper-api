@@ -285,7 +285,15 @@ public class HyperApiProcessor extends AbstractProcessor {
         // Copy all enum constants
         for (Element enclosed : enumElement.getEnclosedElements()) {
             if (enclosed.getKind() == ElementKind.ENUM_CONSTANT) {
-                enumDtoBuilder.addEnumConstant(enclosed.getSimpleName().toString());
+                String constName = enclosed.getSimpleName().toString();
+                TypeSpec.Builder enumConstantBuilder = TypeSpec.anonymousClassBuilder("");
+
+                // Mirror field-level annotations
+                for (AnnotationMirror annotation : enclosed.getAnnotationMirrors()) {
+                    enumConstantBuilder.addAnnotation(AnnotationSpec.get(annotation));
+                }
+
+                enumDtoBuilder.addEnumConstant(constName, enumConstantBuilder.build());
             }
         }
 
@@ -403,6 +411,10 @@ public class HyperApiProcessor extends AbstractProcessor {
                                                                         ClassName.get("com.fasterxml.jackson.annotation", "JsonProperty"))
                                                                 .addMember("value", "$S", fieldName)
                                                                 .build());
+//                                // Mirror class level annotations
+//                                for (AnnotationMirror annotationMirror : element.getAnnotationMirrors()) {
+//                                    fieldBuilder.addAnnotation(AnnotationSpec.get(annotationMirror));
+//                                }
 
                                 dtoBuilder.addField(fieldBuilder.build());
                                 allFields.add(field);
