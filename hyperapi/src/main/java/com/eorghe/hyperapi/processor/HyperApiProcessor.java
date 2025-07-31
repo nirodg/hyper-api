@@ -116,6 +116,8 @@ public class HyperApiProcessor extends AbstractProcessor {
     private Messager messager;
     private Elements elementUtils;
 
+    private HashSet<String> enumsList = new HashSet<>() ;
+
     /**
      * Initializes the annotation processor with the processing environment.
      *
@@ -270,7 +272,7 @@ public class HyperApiProcessor extends AbstractProcessor {
     }
 
 
-    private TypeSpec generateEnumDTO(Element enumElement) throws IOException {
+    private String generateEnumDTO(Element enumElement) throws IOException {
         String enumName = enumElement.getSimpleName().toString();
         String dtoName = enumName + "DTO";
         String basePackage = elementUtils.getPackageOf(enumElement).getQualifiedName().toString();
@@ -292,13 +294,21 @@ public class HyperApiProcessor extends AbstractProcessor {
         }
 
         TypeSpec enumDto = enumDtoBuilder.build();
+        String absoluteEnumClass = basePackage + "." + dtoName;
+
+        if(enumsList.contains(absoluteEnumClass)){
+            // Avoids creating the file twice.
+            return absoluteEnumClass;
+        }else{
+            enumsList.add(absoluteEnumClass);
+        }
 
         JavaFile.builder(basePackage, enumDto)
                 .indent("    ")
                 .build()
                 .writeTo(filer);
 
-        return enumDto;
+        return absoluteEnumClass;
     }
 
     /**
@@ -382,11 +392,12 @@ public class HyperApiProcessor extends AbstractProcessor {
                         if (element.getKind() == ElementKind.ENUM) {
                             // Define the field with the proper DTO
 //                            String generatedEnumDtoName =
-                            TypeName className = TypeName.get(generateEnumDTO(element).getClass());
+                            String enumName = generateEnumDTO(element);
+                            ClassName enumClass = ClassName.bestGuess(enumName);
 
                             // Add the field with Jackson annotations
                             FieldSpec.Builder fieldBuilder =
-                                    FieldSpec.builder(className, fieldName, Modifier.PRIVATE)
+                                    FieldSpec.builder(enumClass, fieldName, Modifier.PRIVATE)
                                             .addAnnotation(
                                                     AnnotationSpec.builder(
                                                                     ClassName.get("com.fasterxml.jackson.annotation", "JsonProperty"))
