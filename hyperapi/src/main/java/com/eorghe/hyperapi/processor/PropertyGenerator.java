@@ -31,6 +31,7 @@ import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -330,6 +331,27 @@ public class PropertyGenerator {
         typeName.startsWith("java.util.Set") ||
         typeName.startsWith("java.util.Collection") ||
         typeName.startsWith("java.util.Map");
+  }
+
+  static boolean isEnumType(Element field) {
+    // Ensure the input is a field (for safety)
+    if (field.getKind() != ElementKind.FIELD) {
+      return false;
+    }
+
+    // Get the field's type
+    TypeMirror fieldType = field.asType();
+
+    // Check if it's a declared type (class/interface/enum)
+    if (fieldType.getKind() != TypeKind.DECLARED) {
+      return false;
+    }
+
+    // Get the element (class/interface/enum) of the field's type
+    Element typeElement = ((DeclaredType) fieldType).asElement();
+
+    // Check if it's an enum
+    return typeElement.getKind() == ElementKind.ENUM;
   }
 
   /**
