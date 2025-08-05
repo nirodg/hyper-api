@@ -826,9 +826,16 @@ public class HyperApiProcessor extends AbstractProcessor {
                                                 String entityName, TypeSpec.Builder serviceClass, ClassName entityClass,
                                                 HyperResource hyperResource) {
 
+        boolean isDefaulRepositoryPkgValue = hyperResource.repositoryPackage().equalsIgnoreCase("repository");
+        String pathRepository = hyperResource.repositoryPackage();
+
+        // override is not default.
+        if(isDefaulRepositoryPkgValue){
+            pathRepository = basePackage + "." + hyperResource.repositoryPackage();
+        }
+
         // Add injected repository field
-        ClassName repositoryClass = ClassName.get(basePackage + "." + hyperResource.repositoryPackage(),
-                entityName + "Repository");
+        ClassName repositoryClass = ClassName.get(pathRepository,entityName + "Repository");
         serviceClass.addField(FieldSpec.builder(repositoryClass, "repository", Modifier.PRIVATE)
                 .addAnnotation(ClassName.get("jakarta.inject", "Inject"))
                 .build());
