@@ -609,6 +609,23 @@ public class HyperApiProcessor extends AbstractProcessor {
         }
     }
 
+    private MethodSpec generateGetOverride(
+            ClassName dtoClass, ClassName entityEventClass, boolean customEmitter) {
+
+        String strCustomEmitter = customEmitter ? "emitter.emit" : "fireEvent";
+        return MethodSpec.methodBuilder("findById")
+                .addAnnotation(Override.class)
+                .addAnnotation(ClassName.get("jakarta.transaction", "Transactional"))
+                .addModifiers(Modifier.PUBLIC)
+                .returns(dtoClass)
+                .addParameter(ParameterSpec.builder(ClassName.get(Long.class), "id").build())
+                .addStatement("$T result = super.findById(id)", dtoClass)
+                .addStatement(
+                        strCustomEmitter + "($T.Type.GET, mapper.toEntity(result))", entityEventClass)
+                .addStatement("return result")
+                .build();
+    }
+
     /**
      * Generates the create method override for the service class.
      *
@@ -728,6 +745,7 @@ public class HyperApiProcessor extends AbstractProcessor {
         ClassName mapperClass = ClassName.get(basePackage + ".mapper", entityName + "Mapper");
 
         Events events = hyperResource.events();
+        boolean fireOnGet = events.onGet();
         boolean fireOnCreate = events.onCreate();
         boolean fireOnUpdate = events.onUpdate();
         boolean fireOnDelete = events.onDelete();
@@ -758,6 +776,15 @@ public class HyperApiProcessor extends AbstractProcessor {
         serviceClass.addMethod(repoGetter);
 
         Optional<TypeMirror> emitterMirror = getEmitterTypeMirror(entity);
+
+        if (fireOnGet) {
+            MethodSpec method =
+                    generateGetOverride(
+                            dtoClass,
+                            ClassName.get("com.eorghe.hyperapi.events", "EntityEvent"),
+                            emitterMirror.isPresent());
+            serviceClass.addMethod(method);
+        }
 
         if (fireOnCreate) {
             MethodSpec method =
@@ -830,7 +857,7 @@ public class HyperApiProcessor extends AbstractProcessor {
         String pathRepository = hyperResource.repositoryPackage();
 
         // override is not default.
-        if(isDefaulRepositoryPkgValue){
+        if(!isDefaulRepositoryPkgValue){
             pathRepository = basePackage + "." + hyperResource.repositoryPackage();
         }
 

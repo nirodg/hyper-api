@@ -69,6 +69,13 @@ public @interface Events {
   boolean onPatch() default false;
 
   /**
+   * Indicates whether the `onGet` event is enabled.
+   *
+   * @return true if the `onGet` event is enabled, false otherwise
+   */
+  boolean onGet() default false;
+
+  /**
    * Specifies the class of the emitter used for handling events.
    *
    * <p>The default emitter is `CdiEntityEmitter`.

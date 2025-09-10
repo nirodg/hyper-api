@@ -71,7 +71,10 @@ public class EntityEvent<BaseEntity> {
     /**
      * The entity has been patched.
      */
-    PATCH
+    PATCH,
+
+
+    GET
   }
 
   private final Type type;
