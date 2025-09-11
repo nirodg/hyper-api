@@ -30,6 +30,8 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
+
+import java.time.Instant;
 import java.util.Date;
 import lombok.Getter;
 import lombok.Setter;
@@ -65,15 +67,12 @@ public abstract class HyperEntity extends PanacheEntity {
   /**
    * The timestamp when the entity was created.
    */
-  @Temporal(TemporalType.TIMESTAMP)
-  private Date createdOn;
+  private Instant createdOn;
 
   /**
    * The timestamp when the entity was last updated.
    */
-  @Column(name = "UPDATED_ON")
-  @Temporal(TemporalType.TIMESTAMP)
-  private Date updatedOn;
+  private Instant updatedOn;
 
   /**
    * Lifecycle callback method invoked before the entity is persisted.
@@ -82,8 +81,9 @@ public abstract class HyperEntity extends PanacheEntity {
    */
   @PrePersist
   public void prePersist() {
-    createdOn = new Date();
-    updatedOn = new Date();
+      Instant now = Instant.now();
+      createdOn = now;
+      updatedOn = now;
   }
 
   /**
@@ -93,7 +93,7 @@ public abstract class HyperEntity extends PanacheEntity {
    */
   @PreUpdate
   public void preUpdate() {
-    updatedOn = new Date();
+    updatedOn = Instant.now();
   }
 
 }
