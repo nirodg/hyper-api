@@ -7,7 +7,7 @@
 
     <groupId>com.eorghe</groupId>
     <artifactId>hyperapi-parent</artifactId>
-    <version>0.4.0</version>
+    <version>0.4.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>HyperAPI Extension</name>
     <url>https://github.com/nirodg/hyper-api</url>
